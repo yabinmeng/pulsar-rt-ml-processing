@@ -1,0 +1,14 @@
+.idea
+.vscode
+*.log
+*.nohup
+*/.idea
+*/*/.idea
+*/target
+*/*/target
+*/*/*/target
+*/*/*/*/target/*
+*/*/*/*/*/target/*
+*/*/*/*/*/*/target/*
+dependency-reduced-pom.xml
+aiml/vertex-ai/conf/pulsar-function
