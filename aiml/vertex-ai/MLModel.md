@@ -1,5 +1,5 @@
 - [1. Overview](#1-overview)
-- [2. Preparation](#2-preparation)
+- [2. Prerequisites](#2-prerequisites)
 - [3. Train the Model](#3-train-the-model)
 - [4. Deploy the Model on Google Vertex AI](#4-deploy-the-model-on-google-vertex-ai)
   - [4.1. Create and Publish the Docker Container](#41-create-and-publish-the-docker-container)
@@ -10,88 +10,90 @@
 
 # 1. Overview
 
-As mentioned earlier, the prediction ML model we use is to follow this [example](https://www.tensorflow.org/tutorials/keras/regression#get_the_data) from TensorFlow doc. In this document, we'll show a detailed, step-by-step procedure of how to create and deploy the prediction ML model on Google's Vertex AI platform. 
+This document provides a step-by-step procedure to train and deploy a machine learning (ML) model on Google's Vertex AI platform. The ML model used in this demo follows the example from the TensorFlow documentation [here](https://www.tensorflow.org/tutorials/keras/regression#get_the_data).
 
-**`NOTE`**: the method we used in this demo for model deployment is following Google's [Custom Training workflow](https://cloud.google.com/vertex-ai/docs/training/overview#workflow_for_custom_training). Another approach would be to use Google's built-in AutoML model training ([doc](https://cloud.google.com/vertex-ai/docs/beginner/beginners-guide)) which could be easier. However, the training dataset used in this demo doesn't meet the minimum 1000 records requirement by AutoML. 
+# 2. Prerequisites
 
-# 2. Preparation
+Before proceeding with training and deployment, ensure the following prerequisites are met:
 
-* First, the following GCP enterprise APIs need to be enabled:
-   * `Compute Engine API`
-   * `Vertex AI API`
-   * `Container Registry API`
+- Enable the following Google Cloud Platform (GCP) enterprise APIs:
+  - Compute Engine API
+  - Vertex AI API
+  - Container Registry API
 
-* Secondly, a GCS bucket (e.g. `gs://temp-pulsar-ml-prediction-bucket`) needs to be created in order to save the trained ML model.
-   * Remember to replace the bucket name accordingly in the provided model training program [ml-model/trainer/train.py](ml-model/trainer/train.py)
+- Create a Google Cloud Storage (GCS) bucket, e.g., `gs://temp-pulsar-ml-prediction-bucket`, to store the trained ML model. Update the bucket name in the provided model training program [ml-model/trainer/train.py]:
 ```
 # TODO: replace `your-gcs-bucket` with the name of the Storage bucket you created earlier
 BUCKET = 'gs://temp-pulsar-ml-prediction-bucket'
 ```
 
-* Last but not the least, since the ML model is built using TensorFlow, you need to install the `tensorflow` python library if you want to test out the model training locally.
+- Install the `tensorflow` Python library to test the model training locally:
 ```
 $ pip install tensorflow
 ```
 
 # 3. Train the Model
 
-Run the following command to test out model training locally:
+To test the model training locally, run the following command:
 ```
 $ cd ml-model
 $ python trainer/train.py
 ```
 
-Once it completes successfully, the trained model will be saved in the `model` subfolder of the created GCS bucket.
+Upon successful completion, the trained model will be saved in the `model` subfolder of the GCS bucket created earlier.
 
 # 4. Deploy the Model on Google Vertex AI
 
 ## 4.1. Create and Publish the Docker Container
 
-First we need to make sure the model training code is made available to the Google Vertex AI platform, the following tasks are needed:
-1. Containerize the training code (e.g. in a docker container).
-2. Upload and publish the docker container to the Google container registry.
+To make the model training code available in Google Vertex AI, perform the following tasks:
 
-The provided [ml-model/Dockerfile](ml-model/Dockerfile) and the bash script [ml-mode/buildContainer.sh](ml-model/buildDContainer.sh) are used to achieve this goal.
+1. Containerize the training code using the provided [ml-model/Dockerfile](ml-model/Dockerfile) and bash script [ml-model/buildDockerContainer.sh].
 
-Please **`NOTE`** you may need to run the following 2 commands in order to successfully run the bash script [ml-mode/buildContainer.sh]
+2. Upload and publish the Docker container to the Google Container Registry.
+
+Ensure you run the following two commands before executing the bash script [ml-model/buildDockerContainer.sh]:
 ```
 $ gcloud auth login
 $ gcloud auth configure-docker
 ```
 
-If there is no issue running the script, a docker image named `fueleffpred:latest` will be published to Google container registry. You can check the published docker image by running the following command:
+If the script runs without any issues, a Docker image named `fueleffpred:latest` will be published to the Google Container Registry. You can verify the published Docker image by running the following command:
+
 ```
 $ gcloud container images list --project=$(gcloud config get-value project)
 ```
 
-You can also view the available published image versions/tags using the following command:
+To view the available published image versions/tags, use the following command:
 ```
 $ gcloud container images list-tags <image_name>
 ```
 
 ## 4.2. Train the Model in Vertex AI
 
-Right now, this step is completed from Google cloud console UI.
+This step is currently performed through the Google Cloud Console UI.
 
-* Under "Vertex AI" -> "Model Development" -> "Training" menu, click "Create" button. Make sure to choose:
-   * `No managed dataset` as the *Datasets*
-   * `Custom training (advanced)` as the *Model training method*
-
+- Go to "Vertex AI" -> "Model Development" -> "Training" and click the "Create" button. Ensure the following options are selected:
+  - Datasets: `No managed dataset`
+  - Model training method: `Custom training (advanced)`
+  
 <img src="./resources/vertex-ai-training-model.png"  width="600" height="320">
 
-* Follow the UI instructions; and in the "Training container" step, make sure to
-   * Select the `Custom container` type, and
-   * Choose the docker image that was just published
-   * Choose the GCS bucket model output location that was created earlier
+- Follow the UI instructions. In the "Training container" step:
+  - Select the `Custom container` type
+  - Choose the recently published Docker image
+  - Specify the GCS bucket model output location created earlier
 
-<img src="./resources/vertex-ai-training-container.png"  width="400" height="320">
+<img src="./resources/vertex-ai-training-container.png"  width="500" height="320">
 
 ## 4.3. Create an Online Service Endpoint
 
-After the model is trained in Vertex AI, you can create an endpoint for it as an online prediction service.
+Once the model is trained in Vertex AI, you can create an endpoint to use it for online predictions.
 
-Under "Vertex AI" -> "Deploy and Use" -> "Online predication" menu, click "CREATE" button will pop up the "New endpoint" window. Follow the instructions on the UI and in the "Model settings" step, choose the deployed model name as in the previous step.
+- Go to "Vertex AI" -> "Deploy and Use" -> "Online prediction" and click the "CREATE" button. 
+  - Follow the instructions in the UI. 
+  - In the "Model settings" step, choose the deployed model name from the previous step.
 
-<img src="./resources/vertex-ai-training-endpoint.png"  width="400" height="250">
+<img src="./resources/vertex-ai-training-endpoint.png"  width="500" height="250">
 
-At this point, the online predication ML model is ready, e.g. for external rest API service calls.
+At this point, the ML model is ready for external REST API.
