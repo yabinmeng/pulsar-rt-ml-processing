@@ -37,7 +37,7 @@ while [[ "$#" -gt 0 ]]; do
    shift
 done
 debugMsg "debugStrebug=${debugStr}"
-debugMsg "endpointName=${debuendpointNamegStr}"
+debugMsg "endpointName=${endpointName}"
 
 if [[ -z "${endpointName}" ]]; then
    usage
@@ -74,7 +74,16 @@ if [[ "${useDsrsRestApi}" == "false" ]]; then
     PROJECT_ID=$(gcloud projects list --filter="$(gcloud config get-value project)" --format="value(PROJECT_NUMBER)")
     LOCATION=$(gcloud config get-value compute/region)
     ENDPOINT_ID=$(gcloud ai endpoints list --region="${LOCATION}" 2>/dev/null | grep ${endpointName} | awk '{print $1}')
-    ACCESS_TOKEN=$(gcloud auth application-default print-access-token)  
+    ACCESS_TOKEN=$(gcloud auth application-default print-access-token)
+
+    debugMsg "PROJECT_ID=${PROJECT_ID}"
+    debugMsg "LOCATION=${LOCATION}"
+    debugMsg "ENDPOINT_ID=${ENDPOINT_ID}"
+
+    if [[ -z "${PROJECT_ID}" || -z "${LOCATION}" ||
+          -z "${ENDPOINT_ID}" || -z "${ACCESS_TOKEN}" ]]; then
+        errExit 70 "Can't get the current GCP project ID, location, endpoint ID, or the access token!"
+    fi
 fi
 
 getLocalIp() {

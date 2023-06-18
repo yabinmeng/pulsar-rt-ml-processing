@@ -1,6 +1,6 @@
 #! /usr/local/bin/bash
 
-DEBUG=true
+DEBUG=false
 
 # 6650: Pulsar native protocol port
 # 8080: Pulsar web admin port
