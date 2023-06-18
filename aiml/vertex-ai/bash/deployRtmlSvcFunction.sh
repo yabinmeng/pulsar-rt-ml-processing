@@ -14,26 +14,36 @@ usage() {
    echo
    echo "Usage: deployRtmlSvcFunction.sh [-h]" 
    echo "                                [-debug]"
+   echo "                                -en <endpointName>"
    echo "       -debug : (Optional) Whether to print out extra information in the functions log."
+   echo "       -en    : (Required) Vertex AI deployed model endpoint name."
    echo
 }
 
-if [[ $# -gt 1 ]]; then
+if [[ $# -eq 0 || $# -gt 3 ]]; then
    usage
    errExit 10 "Incorrect input parametere count!"
 fi
 
-useDsrsRestApi="false"
 debugStr="info"
+endpointName=""
 while [[ "$#" -gt 0 ]]; do
    case $1 in
-      -h)       usage; exit 0           ;;
-      -debug)   debugStr="debug";       ;;
+      -h)       usage; exit 0               ;;
+      -debug)   debugStr="debug";           ;;
+      -en)      endpointName="$2"; shift;   ;;
       *)        errExit 20 "Unknown input parameter passed: $1" ;;
    esac
    shift
 done
 debugMsg "debugStrebug=${debugStr}"
+debugMsg "endpointName=${debuendpointNamegStr}"
+
+if [[ -z "${endpointName}" ]]; then
+   usage
+   errExit 30 "Missing required input parameter 'endpointName'!"
+fi
+
 
 useDsrsRestApi=$(getPropVal ${RTML_DEMO_HOMEDIR}/conf/cfg.properties "useDsrsService")
 debugMsg "useDsrsRestApi=${useDsrsRestApi}"
@@ -47,23 +57,23 @@ funcFullName="public/default/${funcCoreName}"
 funcCfgJsonFile="${RTML_DEMO_HOMEDIR_CONF}/pulsar-function/${funcCoreName}.json"
 
 if ! [[ -f "${funcPkgFile}" ]]; then
-   errExit 10 "Can't find the required function package jar file ('" + funcPkgFile + "')!"
+   errExit 40 "Can't find the required function package jar file ('" + funcPkgFile + "')!"
 fi
 
 if ! [[ -f "${funcCfgJsonFile}" ]]; then
-   errExit 20 "Can't find the required function confiuration json file ('" + funcCfgJsonFile + "')!"
+   errExit 50 "Can't find the required function confiuration json file ('" + funcCfgJsonFile + "')!"
 fi
 
 pulsarShellExistence=$(chkSysSvcExistence pulsar-shell)
 debugMsg "pulsarShellExistence=${pulsarShellExistence}"
 if [[ ${pulsarShellExistence} -eq 0 ]]; then
-    errExit 30 "[ERROR] 'puslar-shell' isn't installed on the local machine, which is required to create Pulsar topics and functions!"
+    errExit 60 "[ERROR] 'puslar-shell' isn't installed on the local machine, which is required to create Pulsar topics and functions!"
 fi
 
 if [[ "${useDsrsRestApi}" == "false" ]]; then
     PROJECT_ID=$(gcloud projects list --filter="$(gcloud config get-value project)" --format="value(PROJECT_NUMBER)")
-    LOCATION="us-central1"
-    ENDPOINT_ID="1270679199941656576"
+    LOCATION=$(gcloud config get-value compute/region)
+    ENDPOINT_ID=$(gcloud ai endpoints list --region="${LOCATION}" 2>/dev/null | grep ${endpointName} | awk '{print $1}')
     ACCESS_TOKEN=$(gcloud auth application-default print-access-token)  
 fi
 
