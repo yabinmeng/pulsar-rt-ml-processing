@@ -2,7 +2,7 @@
 
 ## Summary
 
-This GitHub repository serves as a comprehensive guide and demonstration of utilizing Apache Pulsar for real-time messaging, streaming, and machine learning (ML) processing. The repository showcases various components and examples that highlight the capabilities and features of Apache Pulsar in these domains. It aims to provide developers and enthusiasts with practical insights into leveraging Pulsar for building robust, scalable, and efficient real-time data pipelines in the following areas:
+This GitHub repository serves as an introductory guide and demonstration of utilizing Apache Pulsar for real-time messaging, streaming, and machine learning (ML) processing. The repository showcases various components and examples that highlight the capabilities and features of Apache Pulsar in these domains. It aims to provide developers and enthusiasts with practical insights into leveraging Pulsar for building robust, scalable, and efficient real-time data pipelines in the following areas:
 
 1. Real-Time Messaging: Demonstrations and sample code illustrating how to implement real-time messaging solutions using Pulsar's publish-subscribe model and features like topics, producers, and consumers.
 2. Streaming Processing: Examples showcasing Pulsar's streaming capabilities through the usage of Pulsar Functions and Apache Flink integration for stream processing tasks.
