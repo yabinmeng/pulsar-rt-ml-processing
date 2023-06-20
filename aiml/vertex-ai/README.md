@@ -38,7 +38,7 @@ In this demo, we utilize a basic regression model for automobile fuel efficiency
 
 Once the model is trained, it should be deployed as an Endpoint for online prediction. If the endpoint deployment is successful, the complete URL of the endpoint would resemble the following format:
 ```
-https://<GCP_LOCATION>-aiplatform.googleapis.com/v1/projects/<PROJECT_ID>/locations/us-central1/endpoints/<ENDPOINT_ID>:predict
+https://<GCP_LOCATION>-aiplatform.googleapis.com/v1/projects/<PROJECT_ID>/locations/<GCP_LOCATION>/endpoints/<ENDPOINT_ID>:predict
 ```
 
 Please **NOTE** in the above model endpoint URL
