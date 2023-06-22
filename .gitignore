@@ -2,6 +2,7 @@
 .vscode
 *.log
 *.nohup
+*.bkup
 */.idea
 */*/.idea
 */target
