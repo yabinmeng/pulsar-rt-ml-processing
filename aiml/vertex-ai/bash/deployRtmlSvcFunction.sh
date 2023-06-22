@@ -1,9 +1,9 @@
 #! /usr/local/bin/bash
 
 CUR_SCRIPT_FOLDER=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-RTML_DEMO_HOMEDIR=$( cd -- "${CUR_SCRIPT_FOLDER}/.." &> /dev/null && pwd )
+VERTEX_RTML_HOMEDIR=$( cd -- "${CUR_SCRIPT_FOLDER}/.." &> /dev/null && pwd )
 
-source "${RTML_DEMO_HOMEDIR}/bash/_utilities_.sh"
+source "${VERTEX_RTML_HOMEDIR}/../../_bash_/utilities.sh"
 
 echo
 
@@ -45,16 +45,16 @@ if [[ -z "${endpointName}" ]]; then
 fi
 
 
-useDsrsRestApi=$(getPropVal ${RTML_DEMO_HOMEDIR}/conf/cfg.properties "useDsrsService")
+useDsrsRestApi=$(getPropVal ${VERTEX_RTML_HOMEDIR}/conf/main-cfg.properties "useDsrsService")
 debugMsg "useDsrsRestApi=${useDsrsRestApi}"
 
-RTML_DEMO_HOMEDIR_APP="${RTML_DEMO_HOMEDIR}/code/rtml-app"
-RTML_DEMO_HOMEDIR_CONF="${RTML_DEMO_HOMEDIR}/conf"
+VERTEX_RTML_HOMEDIR_APP="${VERTEX_RTML_HOMEDIR}/code/rtml-app"
+VERTEX_RTML_HOMEDIR_CONF="${VERTEX_RTML_HOMEDIR}/conf"
 
-funcPkgFile="${RTML_DEMO_HOMEDIR_APP}/func-mlsvc-caller/target/func-mlsvc-caller-1.0.0.jar"
+funcPkgFile="${VERTEX_RTML_HOMEDIR_APP}/func-mlsvc-caller/target/func-mlsvc-caller-1.0.0.jar"
 funcCoreName="rtmlsvccaller"
 funcFullName="public/default/${funcCoreName}"
-funcCfgJsonFile="${RTML_DEMO_HOMEDIR_CONF}/pulsar-function/${funcCoreName}.json"
+funcCfgJsonFile="${VERTEX_RTML_HOMEDIR_CONF}/pulsar-function/${funcCoreName}.json"
 
 if ! [[ -f "${funcPkgFile}" ]]; then
    errExit 40 "Can't find the required function package jar file ('" + funcPkgFile + "')!"

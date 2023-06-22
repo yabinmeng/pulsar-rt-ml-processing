@@ -1,9 +1,9 @@
-#! /bin/bash
+#! /usr/local/bin/bash
 
 CUR_SCRIPT_FOLDER=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-RTML_DEMO_HOMEDIR=$( cd -- "${CUR_SCRIPT_FOLDER}/../.." &> /dev/null && pwd )
+VERTEX_RTML_HOMEDIR=$( cd -- "${CUR_SCRIPT_FOLDER}/../.." &> /dev/null && pwd )
 
-source "${RTML_DEMO_HOMEDIR}/bash/_utilities_.sh"
+source "${VERTEX_RTML_HOMEDIR}/../../_bash_/utilities.sh"
 
 usage() {
    echo
@@ -37,7 +37,7 @@ done
 # Name must be lowercase
 pulsarClstrName="rtmldemo"
 
-helmChartHomeDir="${RTML_DEMO_HOMEDIR}/conf/helm"
+helmChartHomeDir="${VERTEX_RTML_HOMEDIR}/deployment/pulsar-helm"
 helmChartFile="values.yaml"
 
 
@@ -122,12 +122,11 @@ done
 if [[ -n "${proxySvcName// }" ]]; then
     echo
     echo "--------------------------------------------------------------"
-    echo ">> Forward Pulsar Proxy ports to localhost ... "
-    source ${RTML_DEMO_HOMEDIR}/bash/infra/forward_pulsar_proxy_port.sh \
+    echo ">> Forward Pulsar Proxy ports to localhost: ${PULSAR_PROXY_PORTS[@]} ... "
+    source ${VERTEX_RTML_HOMEDIR}/bash/infra/forward_pulsar_proxy_port.sh \
         -namespace "${k8sNamespace}" \
-        -act "start" \
-        -proxySvc "${proxySvcName}" \
-        -tlsEnabled "false"
+        -svcName "${proxySvcName}" \
+        -act "start"
 fi
 
 echo

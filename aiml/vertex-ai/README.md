@@ -108,7 +108,7 @@ To run this demo, you will need a Pulsar cluster that allows the deployed Pulsar
 
 For convenience, this demo includes scripts to set up a Pulsar cluster in a K8s cluster, such as Docker Desktop's built-in K8s cluster, using the DataStax Pulsar Helm chart.
 
-You can find an example values.yaml file for the Helm chart in this demo at: [conf/helm/values.yaml](conf/helm/values.yaml). This example sets up a simple Pulsar cluster without enabling security features.
+You can find an example values.yaml file for the Helm chart in this demo at: [deployment/pulsar-helm/values.yaml](deployment/pulsar-helm/values.yaml). This example sets up a simple Pulsar cluster without enabling security features.
 
 To simplify the deployment process of the Pulsar cluster, the following bash scripts are provided in this demo:
 
@@ -119,7 +119,7 @@ Please ***NOTE*** that the deployment script mentioned above will also port-forw
 
 ## 3.2. Global Configuration Parameters
 
-To execute the end-to-end prediction simulation workflow, certain global configuration parameters (listed below) are required. For convenience, a default properties file is provided specifically for this purpose: [conf/cfg.properties](conf/cfg.properties).
+To execute the end-to-end prediction simulation workflow, certain global configuration parameters (listed below) are required. For convenience, a default properties file is provided specifically for this purpose: [conf/main-cfg.properties](conf/main-cfg.properties).
 ```
 clientConf=./conf/conn/client.conf
 inputTopic=public/default/input

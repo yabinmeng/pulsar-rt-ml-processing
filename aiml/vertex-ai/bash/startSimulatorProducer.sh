@@ -1,9 +1,9 @@
 #! /usr/local/bin/bash
 
 CUR_SCRIPT_FOLDER=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-RTML_DEMO_HOMEDIR=$( cd -- "${CUR_SCRIPT_FOLDER}/.." &> /dev/null && pwd )
+VERTEX_RTML_HOMEDIR=$( cd -- "${CUR_SCRIPT_FOLDER}/.." &> /dev/null && pwd )
 
-source "${RTML_DEMO_HOMEDIR}/bash/_utilities_.sh"
+source "${VERTEX_RTML_HOMEDIR}/../../_bash_/utilities.sh"
 
 echo
 
@@ -35,7 +35,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 debugMsg "numRecords=${numRecords}"
 
-mainCfgPropFile="${RTML_DEMO_HOMEDIR}/conf/cfg.properties"
+mainCfgPropFile="${VERTEX_RTML_HOMEDIR}/conf/main-cfg.properties"
 if ! [[ -f "${mainCfgPropFile}" ]]; then
   errExit 30 "Can't find the required main configuration properties file!"
 fi
@@ -44,8 +44,8 @@ if [[ ${numRecords} -eq 0 || ${numRecords} -lt -1 ]]; then
   errExit 40 "Invalid number of records to receive: ${numRecords}!"
 fi
 
-RTML_DEMO_HOMEDIR_APP="${RTML_DEMO_HOMEDIR}/code/rtml-app"
-clientAppJarFile="${RTML_DEMO_HOMEDIR_APP}/rtml-simulator/target/rtml-simulator-1.0.0.jar"
+VERTEX_RTML_HOMEDIR_APP="${VERTEX_RTML_HOMEDIR}/code/rtml-app"
+clientAppJarFile="${VERTEX_RTML_HOMEDIR_APP}/rtml-simulator/target/rtml-simulator-1.0.0.jar"
 if ! [[ -f "${clientAppJarFile}" ]]; then
   errExit 40 "Can't find the required client application jar file!"
 fi

@@ -1,9 +1,9 @@
 #! /usr/local/bin/bash
 
 CUR_SCRIPT_FOLDER=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-RTML_DEMO_HOMEDIR=$( cd -- "${CUR_SCRIPT_FOLDER}/.." &> /dev/null && pwd )
+VERTEX_RTML_HOMEDIR=$( cd -- "${CUR_SCRIPT_FOLDER}/.." &> /dev/null && pwd )
 
-source "${RTML_DEMO_HOMEDIR}/bash/_utilities_.sh"
+exit
 
 mvnExistence=$(chkSysSvcExistence mvn)
 debugMsg "mvnExistence=${mvnExistence}"
@@ -12,9 +12,9 @@ if [[ ${mvnExistence} -eq 0 ]]; then
 fi
 
 # Build the prediction simulation applications
-cd  "${RTML_DEMO_HOMEDIR}/code/rtml-app/"
+cd  "${VERTEX_RTML_HOMEDIR}/code/rtml-app/"
 mvn clean install -Dmaven.plugin.validation=brief
 
 # Build the DSRS REST server
-cd "${RTML_DEMO_HOMEDIR}/code/test-rest-server"
+cd "${VERTEX_RTML_HOMEDIR}/code/test-rest-server"
 mvn clean install -Dmaven.plugin.validation=brief
