@@ -27,7 +27,7 @@ raw_cass_tbl_col_name_list = ["year",
                               "price",
                               "price_ind",
                               "page",
-                              "time",
+                              "event_time",
                               "so_key"]
 class RawDataTopic(Record):
     year = Integer()
