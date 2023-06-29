@@ -10,9 +10,9 @@ source "${KASKADA_RTML_HOMEDIR}/../_bash_/utilities.sh"
 #
 usage() {   
    echo
-   echo "Usage: deploy_kaskada_cluster.sh.sh [-h]" 
-   echo "                                    [-portForwardOnly]"
-   echo "                                    [-localHemRepo <local_helm_repo_name>]"
+   echo "Usage: deploy_kaskada_cluster.sh [-h]" 
+   echo "                                 [-portForwardOnly]"
+   echo "                                 [-localHemRepo <local_helm_repo_name>]"
    echo "       -h  : Show usage info"
    echo "       -portForwardOnly : (Optional) Only do port forwarding when specified."
    echo "       -localHelmRepo   : (Optional) The Kaskada helm repo local folder. Default to \"./kaskada/charts/kaskada-canary\"."
@@ -21,7 +21,7 @@ usage() {
 
 if [[ $# -gt 3 ]]; then
    usage
-   echo "Incorrect input parametere count!"
+   echo "Incorrect input parameter count!"
    exit 10
 fi
 
