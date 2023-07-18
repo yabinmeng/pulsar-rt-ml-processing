@@ -1,0 +1,19 @@
+÷
+÷ NOTE: this is "pseudo code" only and is not working because of Fenl query limitations. Some noticeable ones
+÷       in this example are:
+÷ ---------------------------------------------------
+÷ > only works with number fields
+÷   * no type conversion between numbers and strings
+÷   * no string functions
+÷ > limited aggregation capabilities
+÷   * no lastN (as needed in this example)
+÷   * can't create custom aggregation 
+÷
+
+let SessionCatPriceWindowStream = kasTblInput
+| select_fields($input, 'session', 'category', 'price')
+| max($input, window=sliding(1, minutely()))
+
+in { sessionId: SessionWindowStream.session,
+     prevClickAttr_last1: lag(1, SessionWindowStream.price),
+     prevClickAttr_last2: lag(2, SessionWindowStream.clickAttr) }

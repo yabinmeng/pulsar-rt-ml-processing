@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example.realtimeml</groupId>
+    <artifactId>eshoprec</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+
+    <name>${project.artifactId}</name>
+    
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.4.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <properties>
+        <java.version>8</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <pulsar.version>2.10.3</pulsar.version>
+        <spark.version>3.4.0</spark.version>
+        <flink.version>1.17.0</flink.version>
+        <flink.pulsar.connector.version>1.16.1</flink.pulsar.connector.version>
+        <flink.pulsar.sql.connector.version>1.16.1</flink.pulsar.sql.connector.version>
+    </properties>
+
+    <modules>
+        <module>common-resources</module>
+        <module>eshop-input-producer</module>
+        <module>eshop-model-consumer</module>
+        <module>flink-pulsar</module>
+        <module>sparkss-file</module>
+        <module>sparkss-pulsar</module>
+        <module>misc</module>
+    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>pulsar-client</artifactId>
+            <version>${pulsar.version}</version>
+        </dependency>
+    </dependencies>
+</project>

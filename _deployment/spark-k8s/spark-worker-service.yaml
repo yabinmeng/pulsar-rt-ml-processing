@@ -1,0 +1,16 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: spark-worker
+  labels:
+    component: spark-worker
+spec:
+  ports:
+    - name: webui
+      port: 9091
+      targetPort: 9091
+    - name: spark
+      port: 7077
+      targetPort: 7077
+  selector:
+    component: spark-worker

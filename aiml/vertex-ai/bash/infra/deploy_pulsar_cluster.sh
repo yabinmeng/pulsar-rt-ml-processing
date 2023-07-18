@@ -48,7 +48,7 @@ echo "= "
 
 echo
 echo "--------------------------------------------------------------"
-echo "Creating K8s namespace ${nsName} if doesn't exist ..."
+echo "Creating K8s namespace ${k8sNamespace} if doesn't exist ..."
 existingPulsarNs=$(kubectl get namespace | grep ${k8sNamespace})
 if [[ -z "${existingPulsarNs}" ]]; then
   kubectl create namespace ${k8sNamespace}

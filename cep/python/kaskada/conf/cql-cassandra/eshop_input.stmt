@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS <TBL_NAME> (
+   year         int,
+   month        int,
+   day          int,
+   order_seq    int,
+   country      int,
+   session      int,
+   category     int,
+   model        text,
+   color        int,
+   location     int,
+   photography  int,
+   price        int,
+   price_ind    int,
+   page         int,
+   event_time   timestamp,
+   so_key       int,
+   PRIMARY KEY (so_key)
+);
