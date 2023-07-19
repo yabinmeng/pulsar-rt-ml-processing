@@ -153,8 +153,8 @@ if __name__ == '__main__':
         cass_raw_tbl_name = main_cfg_props.get('ad.table.raw').data
         pulsar_tenant = main_cfg_props.get('as.tenant').data.strip()
         pulsar_namespace = main_cfg_props.get('as.namespace').data.strip()
-        pulsar_topic_raw = main_cfg_props.get('as.topic.raw').data.strip()
-        pulsar_topic_model = main_cfg_props.get('as.topic.model').data.strip()
+        pulsar_topic_raw = main_cfg_props.get('as.topic.input').data.strip()
+        pulsar_topic_model = main_cfg_props.get('as.topic.output').data.strip()
 
         pulsar_clnt_conn_file = main_cfg_props.get('as.client.conf').data.strip()
         if not os.path.isfile(pulsar_clnt_conn_file):

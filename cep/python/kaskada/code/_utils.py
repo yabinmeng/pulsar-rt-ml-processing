@@ -2,7 +2,7 @@
 from jproperties import Properties
 
 # requirement: pip install pulsar-client
-# requirement: pulsar-client[avro]
+# requirement: pip install pulsar-client[avro]
 import pulsar
 from pulsar.schema import *
 

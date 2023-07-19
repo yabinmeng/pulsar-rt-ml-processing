@@ -77,14 +77,14 @@ This step is currently performed through the Google Cloud Console UI.
   - Datasets: `No managed dataset`
   - Model training method: `Custom training (advanced)`
   
-<img src="./resources/vertex-ai-training-model.png"  width="600" height="320">
+<img src="../../_images/vertex-ai-training-model.png"  width="600" height="320">
 
 - Follow the UI instructions. In the "Training container" step:
   - Select the `Custom container` type
   - Choose the recently published Docker image
   - Specify the GCS bucket model output location created earlier
 
-<img src="./resources/vertex-ai-training-container.png"  width="500" height="320">
+<img src="../../_images/vertex-ai-training-container.png"  width="500" height="320">
 
 ## 4.3. Create an Online Service Endpoint
 
@@ -94,6 +94,6 @@ Once the model is trained in Vertex AI, you can create an endpoint to use it for
   - Follow the instructions in the UI. 
   - In the "Model settings" step, choose the deployed model name from the previous step.
 
-<img src="./resources/vertex-ai-training-endpoint.png"  width="500" height="250">
+<img src="../../_images/vertex-ai-training-endpoint.png"  width="500" height="250">
 
 At this point, the ML model is ready for external REST API.

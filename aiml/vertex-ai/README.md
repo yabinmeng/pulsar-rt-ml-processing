@@ -2,7 +2,7 @@
 - [2. Introduction to the Prediction ML Model](#2-introduction-to-the-prediction-ml-model)
   - [2.1. Make the Rest API call to the Model Endpoint](#21-make-the-rest-api-call-to-the-model-endpoint)
   - [2.2. Endpoint Access Token](#22-endpoint-access-token)
-- [3. Set up the Environment and Run the Simulation](#3-set-up-the-environment-and-run-the-simulation)
+- [3. Set up the Environment and Run the Demo Simulation](#3-set-up-the-environment-and-run-the-demo-simulation)
   - [3.1. Set up a Pulsar Cluster](#31-set-up-a-pulsar-cluster)
   - [3.2. Global Configuration Parameters](#32-global-configuration-parameters)
   - [3.3. Deploy the Prediction Pulsar Function](#33-deploy-the-prediction-pulsar-function)
@@ -22,7 +22,7 @@
 This repository demonstrates how Apache Pulsar can be used to facilitate the implementation of a real-time ML model prediction service. It is important to note that the ML model utilized in this example is pre-created, pre-trained, and pre-deployed on an ML platform like Google Vertex AI. This aspect of the process is not in real-time. However, Apache Pulsar excels in enabling real-time predictions by leveraging pre-trained ML services.
 
 The overall architecture of this demo is like below:
-![deployment](resources/deployment.png)
+![deployment](../../_images/astrastreaming_vertexai.png)
 
 The above diagram illustrates the involvement of several Pulsar components:
 1. A Pulsar producer generates a series of messages containing the necessary inputs for the ML model service.
@@ -96,7 +96,7 @@ The ML model endpoint is securely protected and can be accessed by providing the
 $ gcloud auth application-default print-access-token
 ```
 
-# 3. Set up the Environment and Run the Simulation
+# 3. Set up the Environment and Run the Demo Simulation
 
 *The detail of creating and deploying the ML model on Google Vertex AI can be found in this document: [Deploy a Simple Prediction ML Model.md](./MLModel.md)*.
 

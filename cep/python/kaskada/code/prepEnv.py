@@ -15,11 +15,11 @@ arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
     "-cf", "--cfile", help="main configuration file", default="../conf/main-cfg.properties")
 arg_parser.add_argument(
-    "-cpt", "--createPulsarTopic", help="create Astra Streaming topics (raw and model)", default="true")
+    "-cdt", "--createDbTbl", help="create Astra DB tables (input and output)", default="true")
 arg_parser.add_argument(
-    "-cdt", "--createDbTbl", help="create Astra DB tables (raw and model)", default="true")
+    "-cpt", "--createPulsarTopic", help="create Astra Streaming topics (input and output)", default="true")
 arg_parser.add_argument(
-    "-ldr", "--loadRawSrc", help="load raw data records in the raw Astra DB table", default="false")
+    "-ldr", "--loadRawSrc", help="load raw data records into the Astra DB input table", default="false")
 # the following 2 parameters are only relevant when '-ldr' parameter is True
 arg_parser.add_argument(
     "-rsf", "--rawSrcFile", help="source file that has the raw data")
@@ -159,8 +159,8 @@ if __name__ == '__main__':
 
             pulsar_tenant = main_cfg_props.get('as.tenant').data.strip()
             pulsar_namespace = main_cfg_props.get('as.namespace').data.strip()
-            pulsar_topic_raw = main_cfg_props.get('as.topic.raw').data.strip()
-            pulsar_topic_model = main_cfg_props.get('as.topic.model').data.strip()
+            pulsar_topic_raw = main_cfg_props.get('as.topic.input').data.strip()
+            pulsar_topic_model = main_cfg_props.get('as.topic.output').data.strip()
 
             res = create_pulsar_namespace(pulsar_clnt_conn_props, pulsar_tenant, pulsar_namespace)
             if 200 <= res.status_code < 300:
@@ -186,7 +186,7 @@ if __name__ == '__main__':
                       "(" + pulsar_tenant + "/" + pulsar_namespace + "/" + pulsar_topic_raw + ") with return code: " +
                       str(res.status_code))
 
-            b_create_raw_topic_schema = str2bool(main_cfg_props.get('as.topic.raw.schema').data.strip())
+            b_create_raw_topic_schema = str2bool(main_cfg_props.get('as.topic.input.schema').data.strip())
             if b_create_raw_topic_schema:
                 schema_def_file_name = main_cfg_props.get('as.client.conf').data.strip()
                 res = create_pulsar_topic_schema(pulsar_clnt_conn_props,

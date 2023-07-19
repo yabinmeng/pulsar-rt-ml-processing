@@ -2,19 +2,19 @@
 ad.client.id=bkTdjEgMsbnGFnvcxFEQBiox
 ad.client.secret=nMXWjrfwMdJbOIYm1nkhqmnuKDi-QnPhrqd3tL+996XTYRuO,KLUxRiRdUrZJzFQlr7+4XB43S_UHAAM9hd5Gk.diq7O-0sAg74oyqiKZm8IZIbu5CEPq_H7uoZ-KmEh
 ad.secure.bundle=../conf/conn/astra-db/secure-connect-myfeasttest.zip
-ad.keyspace=feastks
-ad.table.raw=eshop_input
-ad.table.model=eshop_result
+ad.keyspace=testks
+ad.table.raw=rt_kas_input_tbl
+ad.table.model=rt_kas_output_tbl
 
 # Astra Streaming related settings
 as.client.conf=../conf/conn/astra-streaming/client.conf
-as.tenant=pwtest
+as.tenant=rt-kas-proc
 as.namespace=default
-as.topic.raw=eshop_input
-as.topic.raw.schema=true
-as.topic.raw.schema.json=true
-as.topic.model=eshop_result
-as.topic.model.schema=false
+as.topic.input=rt_kas_input_tp
+as.topic.output=rt_kas_output_tp
+# If the schema is enabled, an Avro schema will be created for the input topic
+as.topic.input.schema=true
+# The schema for the output topic is always String
 
 ####
 # Kaskada related settings
@@ -28,13 +28,3 @@ kaskada.endpoint=localhost:50051
 # - kaskada table is immutable and can't do in-place update
 # - recreating a kaskada table means deleting the table first (if it exists)
 kaskada.recreate_table=true
-
-## valid kaskada source file location: 'gs:' (GCP GCS), 's3:' (AWS S3), or 'file:' (local file system
-# - must be an absolute file path
-kaskada.input_file.location=file:///path/to/eshop_input_with_header_simp.csv
-kaskada.dest_file.location=gs://temp-kaskda-orantest/eshop_model_dest.csv
-
-# kaskada GCS service account key file
-kaskada.gcs.svc_key=../conf/conn/kaskada/gcp_service_account.json
-
-kaskada.client_id=mykaskadatest
