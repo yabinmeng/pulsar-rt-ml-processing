@@ -1,19 +1,19 @@
 # Astra DB related settings
-ad.client.id=bkTdjEgMsbnGFnvcxFEQBiox
-ad.client.secret=nMXWjrfwMdJbOIYm1nkhqmnuKDi-QnPhrqd3tL+996XTYRuO,KLUxRiRdUrZJzFQlr7+4XB43S_UHAAM9hd5Gk.diq7O-0sAg74oyqiKZm8IZIbu5CEPq_H7uoZ-KmEh
-ad.secure.bundle=../conf/conn/astra-db/secure-connect-myfeasttest.zip
-ad.keyspace=testks
-ad.table.raw=rt_kas_input_tbl
-ad.table.model=rt_kas_output_tbl
+ad.client.id=<client-id>
+ad.client.secret=<client-secret>
+ad.secure.bundle=</path/to/secure-connect-bundle.zip>
+ad.keyspace=<C*_keyspace>
+ad.table.input=<C*_input_table>
+ad.table.output=<C*_output_table>
 
 # Astra Streaming related settings
-as.client.conf=../conf/conn/astra-streaming/client.conf
-as.tenant=rt-kas-proc
-as.namespace=default
-as.topic.input=rt_kas_input_tp
-as.topic.output=rt_kas_output_tp
+as.client.conf=</path/to/pulsar/client.conf>
+as.tenant=<pulsar-tenant>
+as.namespace=<pulsar-namespace>
+as.topic.input=<pulsar-input-topic>
+as.topic.output=<pulsar-output-topic>
 # If the schema is enabled, an Avro schema will be created for the input topic
-as.topic.input.schema=true
+as.topic.input.schema=[true|false (default)]
 # The schema for the output topic is always String
 
 ####
