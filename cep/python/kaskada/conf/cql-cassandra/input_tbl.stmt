@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS <TBL_NAME> (
+CREATE TABLE IF NOT EXISTS <KS_NAME>.<TBL_NAME> (
    year         int,
    month        int,
    day          int,

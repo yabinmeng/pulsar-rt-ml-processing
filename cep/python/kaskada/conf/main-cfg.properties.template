@@ -1,4 +1,6 @@
+###
 # Astra DB related settings
+#---------------------------------
 ad.client.id=<client-id>
 ad.client.secret=<client-secret>
 ad.secure.bundle=</path/to/secure-connect-bundle.zip>
@@ -6,19 +8,24 @@ ad.keyspace=<C*_keyspace>
 ad.table.input=<C*_input_table>
 ad.table.output=<C*_output_table>
 
+
+###
 # Astra Streaming related settings
+#---------------------------------
 as.client.conf=</path/to/pulsar/client.conf>
 as.tenant=<pulsar-tenant>
 as.namespace=<pulsar-namespace>
 as.topic.input=<pulsar-input-topic>
 as.topic.output=<pulsar-output-topic>
-# If the schema is enabled, an Avro schema will be created for the input topic
-as.topic.input.schema=[true|false (default)]
-# The schema for the output topic is always String
+# Whether to explicitly create the topic schema if it doesn't exist
+# - If True, an Avro schema will be pre-created for the Pulsar Input and Output Topic
+#   Otherwise, it will be created implicitly
+as.topic.schema=[False|True]
 
-####
+
+###
 # Kaskada related settings
-# -------------
+#---------------------------------
 # kaskada deployment mode: local or K8s
 # - right now the K8s deployment mode is not working (see: https://github.com/kaskada-ai/kaskada/issues/427)
 kaskada.deployment=local
@@ -27,4 +34,9 @@ kaskada.endpoint=localhost:50051
 # whether to delete "recreate" a kaskada table if it already exists
 # - kaskada table is immutable and can't do in-place update
 # - recreating a kaskada table means deleting the table first (if it exists)
-kaskada.recreate_table=true
+kaskada.recreate_table=True
+
+# whether to "recreate" a kaskada materialization if it already exists
+# - kaskada materialization is immutable and can't do in-place update
+# - recreating a kaskada materialization means deleting the table first (if it exists)
+kaskada.materialization.recreate=True

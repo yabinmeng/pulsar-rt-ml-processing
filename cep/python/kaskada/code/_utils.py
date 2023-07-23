@@ -30,7 +30,13 @@ raw_cass_tbl_col_name_list = ["year",
                               "so_key"]
 
 
-class EShopInputTopic(Record):
+##
+# Nullable fields
+# -- for non-nullable fields, adding "required=True" in the parenthesis
+#    e.g. year = Integer(required=True)
+##
+class EShopInput(Record):
+    _avro_namespace = 'default'
     year = Integer()
     month = Integer()
     day = Integer()
@@ -45,7 +51,7 @@ class EShopInputTopic(Record):
     price = Integer()
     price_ind = Integer()
     page = Integer()
-    time = Long()
+    event_time = Long()
     so_key = Integer()
 
 

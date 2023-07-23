@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS <KS_NAME>.<TBL_NAME> (
+   year         int,
+   month        int,
+   day          int,
+   order_seq    int,
+   session      int,
+   category     int,
+   model        text,
+   price        int,
+   price_ind    int,
+   event_time   timestamp,
+   so_key       int,
+   PRIMARY KEY (so_key)
+);

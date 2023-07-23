@@ -3,6 +3,7 @@
 *.log
 *.nohup
 *.bkup
+*.properties
 **/.idea
 **/target
 **/venv

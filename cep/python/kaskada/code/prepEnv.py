@@ -32,6 +32,24 @@ arg_parser.add_argument(
 args = arg_parser.parse_args()
 
 
+def process_pulsar_response(status_code, 
+                            pulsar_entity_type,
+                            pulsar_entity_name):
+    exit_system = False
+    if 200 <= status_code < 300:
+        print("The specified Pulsar entity \"[{}] {}\" is successfully created!"
+              .format(pulsar_entity_type, pulsar_entity_name))
+    elif status_code == 409:
+        print("The specified Pulsar enity \"[{}] {}\" already exists!"
+              .format(pulsar_entity_type, pulsar_entity_name))
+    else:
+        exit_system = True
+        print("Failed to create the specified Pulsar entity \"[{}] {}\" with status code \"{}\"!"
+              .format(pulsar_entity_type, pulsar_entity_name, status_code))
+    
+    return exit_system
+
+
 # create a Pulsar namespace (using Rest API)
 # - TBD: can we create the admin object as 'PulsarAdminClient' in Java?
 def create_pulsar_namespace(clnt_conn_configs, tnt, ns):
@@ -47,7 +65,7 @@ def create_pulsar_namespace(clnt_conn_configs, tnt, ns):
 
 
 # create a Pulsar topic (using Rest API)
-# - default to a partitioned topic with 5 partitions
+# - default to a partitioned topic with 3 partitions
 def create_pulsar_topic(clnt_conn_configs, tnt, ns, topic):
     web_svc_url = clnt_conn_configs.get('webServiceUrl').data.strip()
     auth_params = clnt_conn_configs.get('authParams').data.strip()
@@ -56,7 +74,7 @@ def create_pulsar_topic(clnt_conn_configs, tnt, ns, topic):
     end_point = web_svc_url + '/admin/v2/persistent/' + tnt + '/' + ns + '/' + topic + '/partitions'
     headers = {"Authorization": "Bearer " + jwt_token_value,
                "Content-Type": "text/plain"}
-    payload = "5"
+    payload = "3"
 
     result = requests.put(end_point, headers=headers, data=payload)
     return result
@@ -64,15 +82,11 @@ def create_pulsar_topic(clnt_conn_configs, tnt, ns, topic):
 
 # create a Pulsar topic (using Rest API)
 # - default to a partitioned topic with 5 partitions
-def create_pulsar_topic_schema(clnt_conn_configs, tnt, ns, topic):
-    # Expecting a Pulsar topic schema definition file under folder:
-    #   ./conf/pulsar-msg-schema/<rawTblname>.json
-    # Otherwise, raise an exception
-    topic_schema_def_file = '../conf/pulsar-schema/' + topic + '.json'
-    if not os.path.isfile(topic_schema_def_file):
-        raise Exception("Can't find the corresponding topic schema defintion file (" + topic +
-                        ".json) under \"../conf/pulsar-schema/\" sub-folder!")
-
+def create_pulsar_topic_schema(clnt_conn_configs, 
+                               topic_schema_def_file,
+                               tnt,
+                               ns,
+                               topic):
     topic_schema_json_str = Path(topic_schema_def_file).read_text()
 
     web_svc_url = clnt_conn_configs.get('webServiceUrl').data.strip()
@@ -87,23 +101,6 @@ def create_pulsar_topic_schema(clnt_conn_configs, tnt, ns, topic):
     return result
 
 
-def create_cass_table(session, keyspace, table):
-    # Expecting a CQL statement definition file under folder:
-    #   ./conf/cassdb-cql/<rawTblname>.stmt
-    # Otherwise, raise an exception
-    tbl_stmt_def_file = '../conf/cql-cassandra/' + table + '.stmt'
-    if not os.path.isfile(tbl_stmt_def_file):
-        raise Exception("Can't find the corresponding CQL statement file (" + table +
-                        ".stmt under \"../conf/cql-cassandra/\" sub-folder!")
-
-    session.execute('use ' + keyspace)
-
-    tbl_cql_stmt = Path(tbl_stmt_def_file).read_text().replace('<TBL_NAME>', table).replace('\n', '')
-    rs = session.execute(tbl_cql_stmt)
-    if logging.DEBUG:
-        logging.debug(rs.one())
-
-
 def load_raw_cass_table(session,
                         keyspace,
                         table,
@@ -113,7 +110,7 @@ def load_raw_cass_table(session,
     col_num = tbl_cols.count(',') + 1
     question_mark_str = ("?," * col_num).rstrip(",")
     insert_stmt = session.prepare("INSERT INTO " + keyspace + "." + table + "(" + tbl_cols + ") "
-                                                                                             "VALUES (" + question_mark_str + ");")
+                                  "VALUES (" + question_mark_str + ");")
     record_loaded = 0
     with open(src_file_name) as file:
         record_line = next(file, '').strip()
@@ -146,70 +143,19 @@ if __name__ == '__main__':
     else:
         main_cfg_props = load_prop_into_dict(main_cfg_file)
 
-        # Create Pulsar namespace/topics in Astra Streaming
-        # - note: Pulsar tenant must be created in advance via the UI
-        b_create_astra_streaming_topic = str2bool(args.createPulsarTopic)
-        if b_create_astra_streaming_topic:
-            pulsar_clnt_conn_file = main_cfg_props.get('as.client.conf').data.strip()
-            if not os.path.isfile(pulsar_clnt_conn_file):
-                print("The specified Pulsar client connection file (" + pulsar_clnt_conn_file + ") is not valid")
-                sys.exit()
-
-            pulsar_clnt_conn_props = load_prop_into_dict(pulsar_clnt_conn_file)
-
-            pulsar_tenant = main_cfg_props.get('as.tenant').data.strip()
-            pulsar_namespace = main_cfg_props.get('as.namespace').data.strip()
-            pulsar_topic_raw = main_cfg_props.get('as.topic.input').data.strip()
-            pulsar_topic_model = main_cfg_props.get('as.topic.output').data.strip()
-
-            res = create_pulsar_namespace(pulsar_clnt_conn_props, pulsar_tenant, pulsar_namespace)
-            if 200 <= res.status_code < 300:
-                print("The specified Pulsar namespace "
-                      "(" + pulsar_tenant + "/" + pulsar_namespace + ") is successfully created!")
-            elif res.status_code == 409:
-                print("The specified Pulsar namespace "
-                      "(" + pulsar_tenant + "/" + pulsar_namespace + ") already exists!")
-            else:
-                print("Failed to create the specified Pulsar namespace "
-                      "(" + pulsar_tenant + "/" + pulsar_namespace + ") with return code: " + str(res.status_code))
-
-            res = create_pulsar_topic(pulsar_clnt_conn_props, pulsar_tenant, pulsar_namespace, pulsar_topic_raw)
-            if 200 <= res.status_code < 300:
-                print("The specified Pulsar topic "
-                      "(" + pulsar_tenant + "/" + pulsar_namespace + "/" + pulsar_topic_raw +
-                      ") is successfully created!")
-            elif res.status_code == 409:
-                print("The specified Pulsar topic "
-                      "(" + pulsar_tenant + "/" + pulsar_namespace + "/" + pulsar_topic_raw + ") already exists")
-            else:
-                print("Failed to create the specified Pulsar topic "
-                      "(" + pulsar_tenant + "/" + pulsar_namespace + "/" + pulsar_topic_raw + ") with return code: " +
-                      str(res.status_code))
-
-            b_create_raw_topic_schema = str2bool(main_cfg_props.get('as.topic.input.schema').data.strip())
-            if b_create_raw_topic_schema:
-                schema_def_file_name = main_cfg_props.get('as.client.conf').data.strip()
-                res = create_pulsar_topic_schema(pulsar_clnt_conn_props,
-                                                 pulsar_tenant,
-                                                 pulsar_namespace,
-                                                 pulsar_topic_raw)
-                if 200 <= res.status_code < 300:
-                    print("Schema for the specified Pulsar topic  "
-                          "(" + pulsar_tenant + "/" + pulsar_namespace + "/" + pulsar_topic_raw + ") is successfully created!")
-                else:
-                    print("Failed to create the schema for the specified Pulsar topic "
-                          "(" + pulsar_tenant + "/" + pulsar_namespace + "/" + pulsar_topic_raw + ") with return code: " + str(
-                        res.status_code))
+        ###########################
+        #
+        # Create Astra DB Tables and load source data into the Input Table if requested
+        #
+        ###########################
 
         b_create_astra_db_tbl = str2bool(args.createDbTbl)
         b_load_raw_src_data = str2bool(args.loadRawSrc)
 
         keyspace_name = main_cfg_props.get('ad.keyspace').data
-        raw_tbl_name = main_cfg_props.get('ad.table.raw').data
-        model_tbl_name = main_cfg_props.get('ad.table.model').data
+        input_tbl_name = main_cfg_props.get('ad.table.input').data
+        output_tbl_name = main_cfg_props.get('ad.table.output').data
 
-        # Create C* keyspace/tables in Astra DB
-        # - note: Astra DB keyspace must be created in advance via the UI
         if b_create_astra_db_tbl or b_load_raw_src_data:
             cassandra_session = connect_to_astra_db_cluster(
                 main_cfg_props.get('ad.client.id').data.strip(),
@@ -217,9 +163,29 @@ if __name__ == '__main__':
                 main_cfg_props.get('ad.secure.bundle').data.strip()
             )
 
+        ##
+        # Create C* tables in Astra DB
+        # - note: Astra DB keyspace must be created in advance via the UI
         if b_create_astra_db_tbl:
-            create_cass_table(cassandra_session, keyspace_name, raw_tbl_name)
-            # createCassTable(cassandraSession, keyspaceName, modelTblName)
+            # Expecting a CQL statement definition file as below in the specified sub-folder:
+            #   ./conf/cassdb-cql/<table_name>.stmt
+
+            for tbl_name in [input_tbl_name, output_tbl_name]:
+                if tbl_name == input_tbl_name:
+                    tbl_stmt_def_file = '../conf/cql-cassandra/input_tbl.stmt'
+                else:
+                    tbl_stmt_def_file = '../conf/cql-cassandra/output_tbl.stmt'
+                if not os.path.isfile(tbl_stmt_def_file):
+                    print("Can't find the corresponding CQL statement file \"{}\""
+                          .format(tbl_stmt_def_file))
+                    sys.exit()
+
+                input_tbl_crt_cql_stmt = Path(tbl_stmt_def_file)\
+                    .read_text() \
+                    .replace('<KS_NAME>', keyspace_name) \
+                    .replace('<TBL_NAME>', tbl_name)\
+                    .replace('\n', '')
+                cassandra_session.execute(input_tbl_crt_cql_stmt)
 
         # Load raw data into the corresponding AstraDB table
         if b_load_raw_src_data:
@@ -236,7 +202,72 @@ if __name__ == '__main__':
 
             load_raw_cass_table(cassandra_session,
                                 keyspace_name,
-                                raw_tbl_name,
+                                input_tbl_name,
                                 ','.join(raw_cass_tbl_col_name_list),
                                 raw_data_src_file,
                                 load_record_num)
+
+
+        ###########################
+        #
+        # Create Astra Streaming Topics, Schema (if requested), and the C* Sink Connector
+        #
+        ###########################
+
+        ##
+        # Create the Pulsar topics and the corresponding JSON schema (if requested)
+        b_create_pulsar_topic = str2bool(args.createPulsarTopic)        
+        if b_create_pulsar_topic:
+            pulsar_clnt_conn_file = main_cfg_props.get('as.client.conf').data.strip()
+            if not os.path.isfile(pulsar_clnt_conn_file):
+                print("The specified Pulsar client connection file (" + pulsar_clnt_conn_file + ") is not valid")
+                sys.exit()
+
+            pulsar_clnt_conn_props = load_prop_into_dict(pulsar_clnt_conn_file)
+
+            pulsar_tenant = main_cfg_props.get('as.tenant').data.strip()
+            pulsar_namespace = main_cfg_props.get('as.namespace').data.strip()
+            pulsar_topic_input = main_cfg_props.get('as.topic.input').data.strip()
+            pulsar_topic_output = main_cfg_props.get('as.topic.output').data.strip()
+            b_create_topic_schema = str2bool(main_cfg_props.get('as.topic.schema').data.strip())
+
+            # Create the specified Pulsar namespace
+            res = create_pulsar_namespace(pulsar_clnt_conn_props, pulsar_tenant, pulsar_namespace)
+            if process_pulsar_response(res.status_code,
+                                       "namespace",
+                                       pulsar_tenant + "/" + pulsar_namespace):
+                sys.exit()
+
+            ##
+            # Create the specified Pulsar topics (Input Topic and Output Topic)
+            for tp_name in [pulsar_topic_input, pulsar_topic_output]:
+                res = create_pulsar_topic(pulsar_clnt_conn_props,
+                                          pulsar_tenant,
+                                          pulsar_namespace,
+                                          tp_name)
+                if process_pulsar_response(res.status_code,
+                                           "topic",
+                                           pulsar_tenant + "/" + pulsar_namespace + "/" + tp_name):
+                    sys.exit()
+
+                ##
+                # If requested, create the JSON schema for the Pulsar Input Topic
+                if b_create_topic_schema:
+                    if tp_name == pulsar_topic_input:
+                        topic_schema_def_file = '../conf/pulsar-schema/input_topic.json'
+                    else:
+                        topic_schema_def_file = '../conf/pulsar-schema/output_topic.json'    
+                    if not os.path.isfile(topic_schema_def_file):
+                        print("Can't find the corresponding topic schema definition file \"{}\""
+                              .format(topic_schema_def_file))
+                        sys.exit()
+                    else:
+                        res = create_pulsar_topic_schema(pulsar_clnt_conn_props,
+                                                         topic_schema_def_file,
+                                                         pulsar_tenant,
+                                                         pulsar_namespace,
+                                                         tp_name)
+                        if process_pulsar_response(res.status_code,
+                                                   "schema",
+                                                   pulsar_tenant + "/" + pulsar_namespace + "/" + tp_name):
+                            sys.exit()
