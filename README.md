@@ -16,7 +16,7 @@ This repository encompasses a collection of comprehensive, end-to-end scenarios 
 | Scenario Folder | Scenario Name | Scenario Description |
 | --------------- | ------------- | -------------------- |
 | [aiml/vertex-ai](aiml/vertex-ai/) | Real-time Online ML Prediction Service using Google Vertex AI | This scenario demonstrates using Pulsar Functions to create a real-time prediction service with a custom ML model built using TensorFlow. The ML model is trained and deployed on Google Vertex AI. By integrating the Pulsar function into data pipelines, developers can enable dynamic and on-the-fly predictions for incoming data streams. This scenario provides detailed documentation, code samples, and instructions for implementing and deploying the Pulsar function for real-time predictions using TensorFlow and Google Vertex AI. |
-| [cep/python/kaskada](cep/python/kaskada/) | Real-time Data Processing using Kaskada | This scenario demonstrates an end-to-end real-time data processing flowing using Apache Cassandra (C*), Apache Pulsar, and Kaskada. The source data resides in an Apache C* table. It will flow into a Kaskada table via a Pulsar topic. After some processing, the result data will write into another Pulsar topic which in turns lands in another C* table eventually. |
+| [cep/python/kaskada](cep/python/kaskada/) | Real-time Data Processing using Kaskada | This scenario demonstrates an end-to-end real-time data processing flowing using Apache Cassandra (C*), Apache Pulsar, and Kaskada. The source data resides in an Apache C* table. It will flow into a Kaskada table via a Pulsar topic. After some processing, the result data will be written into another Pulsar topic which in turns lands in another C* table eventually. |
 
 ## Usage and Licensing
 
