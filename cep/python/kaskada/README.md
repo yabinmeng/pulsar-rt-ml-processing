@@ -51,7 +51,8 @@ In order to run this demo, we need to set up 3 clusters:
 * One C* cluster. We'll create an Astra DB database for this purpose.
 * One Pulsar cluster. We'll create an Astra Streaming tenant for this purpose.
 * One Kaskada cluster. Since there is no "as-a-service" type of offering for Kaskada, we'll deploy a local Kaskada cluster.
- For the `Astra DB database` and the `Astra Streaming tenant`, log in the [DataStax Astra website](https://astra.datastax.com) and follow the UI instructions.
+
+For the `Astra DB database` and the `Astra Streaming tenant`, log in the [DataStax Astra website](https://astra.datastax.com) and follow the UI instructions.
 
 For the `local Kaskada cluster`,
 * First download the Kaskada binaries to a local folder, following the procedure as listed in [this Kaskada doc](https://kaskada.io/docs-site/kaskada/main/installing.html#using-kaskada-with-the-command-line-cli).
