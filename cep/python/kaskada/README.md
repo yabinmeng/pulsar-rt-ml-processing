@@ -442,3 +442,21 @@ analysis:
   - kasTblInput
 ```
 
+***TBD***: as of 07/24/2023, there is one AVRO message deserialization issue (see below) pending further investigation when using Kaskada Materialization
+```
+[2m2023-07-21T20:24:28.236579Z[0m [34mDEBUG[0m [1mOperation[0m[1m{[0mindex=0 operation_label="scan"[1m}[0m[2m:[0m reading pulsar messages
+[2m2023-07-21T20:24:28.267486Z[0m [34mDEBUG[0m [1mOperation[0m[1m{[0mindex=0 operation_label="scan"[1m}[0m[2m:[0m error deserializing message: DeserializeErrorWrapper(
+    [1merror reading Avro record[22m
+    ├╴at [3mcrates/sparrow-runtime/src/streams/pulsar/stream.rs:115:14[23m
+    │
+    ╰─▶ [1mwrong magic in header[22m
+        ├╴at [3mcrates/sparrow-runtime/src/streams/pulsar/stream.rs:114:14[23m
+        ╰╴span trace with 1 frames (1)
+    
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    
+    span trace No. 1
+       0: sparrow_runtime::execute::compute_executor::Operation
+               with index=0 operation_label="scan"
+                 at crates/sparrow-runtime/src/execute/compute_executor.rs:141,
+```
