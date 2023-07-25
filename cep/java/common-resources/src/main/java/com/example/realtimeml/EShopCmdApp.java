@@ -17,7 +17,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-abstract public class EShopRecCmdApp {
+abstract public class EShopCmdApp {
 
     protected final static String API_TYPE = "eShopRec";
 
@@ -38,14 +38,14 @@ abstract public class EShopRecCmdApp {
     public abstract void runApp();
     public abstract void termApp();
 
-    public EShopRecCmdApp(String appName, String[] inputParams) {
+    public EShopCmdApp(String appName, String[] inputParams) {
         this.appName = appName;
         this.rawCmdInputParams = inputParams;
         this.commandParser = new DefaultParser();
 
         addOptionalCommandLineOption("h", "help", false, "Displays the usage method.");
-        addRequiredCommandLineOption("tp", "topic", true, "Pulsar topic name.");
-        addRequiredCommandLineOption("pc","pulsarConnFile", true, "\"client.conf\" file path.");
+        addOptionalCommandLineOption("tp", "topic", true, "Pulsar topic name.");
+        addOptionalCommandLineOption("pc","pulsarConnFile", true, "\"client.conf\" file path.");
         addOptionalCommandLineOption("as", "astra", false, "Whether to use Astra streaming.");
     }
 

@@ -27,13 +27,13 @@ public class EShopInputProducer extends EShopPulsarClientApp {
     public EShopInputProducer(String appName, String[] inputParams) {
         super(appName, inputParams);
 
-        addRequiredCommandLineOption("csv","csvFile", true, "IoT sensor data CSV file.");
+        addOptionalCommandLineOption("csv","csvFile", true, "IoT sensor data CSV file.");
 
         logger.info("Starting application: \"" + appName + "\" ...");
     }
 
     public static void main(String[] args) {
-        EShopRecCmdApp workshopApp = new EShopInputProducer(APP_NAME, args);
+        EShopCmdApp workshopApp = new EShopInputProducer(APP_NAME, args);
         int exitCode = workshopApp.run();
         System.exit(exitCode);
     }

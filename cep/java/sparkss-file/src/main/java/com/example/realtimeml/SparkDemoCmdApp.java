@@ -3,7 +3,7 @@ package com.example.realtimeml;
 import com.example.realtimeml.exception.InvalidParamException;
 import org.apache.commons.lang3.StringUtils;
 
-abstract public class SparkDemoCmdApp extends EShopRecCmdApp {
+abstract public class SparkDemoCmdApp extends EShopCmdApp {
 
     protected final static String API_TYPE = "eShopRecSparkSS";
 

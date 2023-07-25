@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 //import org.apache.flink.streaming.connectors.pulsar.catalog.PulsarCatalog;
 //import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.catalog.Catalog;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,11 +41,11 @@ import java.time.Duration;
 import java.util.*;
 
 // EShop data preparer for the recommendation AI/ML model
-public class EShopRecModelProcessor extends EShopRecCmdApp {
-    private final static String APP_NAME = "EShopRecModelProcessor";
+public class EShopFlinkProcessor extends EShopCmdApp {
+    private final static String APP_NAME = "EShopFlinkProcessor";
     static { System.setProperty("log_file_base_name", getLogFileName(API_TYPE, APP_NAME)); }
 
-    private final static Logger logger = LoggerFactory.getLogger(EShopRecModelProcessor.class);
+    private final static Logger logger = LoggerFactory.getLogger(EShopFlinkProcessor.class);
 
     private final static String FLINK_API_TYPE_DS ="ds";
     private final static String FLINK_API_TYPE_SQL ="sql";
@@ -89,35 +88,33 @@ public class EShopRecModelProcessor extends EShopRecCmdApp {
 
     private int lastNCnt;
 
-
-
     private StreamExecutionEnvironment dsEnv;
-    private PulsarSource<EShopInputData> eShopPulsarDsRawSource;
-    private PulsarSink<String> eshopPulsarDsRecModelSink;
+    private PulsarSource<EShopInputData> eShopPulsarDsInputSource;
+    private PulsarSink<String> eshopPulsarDsOutputSink;
 
     private StreamTableEnvironment tblEnv;
 
-    public EShopRecModelProcessor(String appName, String[] inputParams) {
+    public EShopFlinkProcessor(String appName, String[] inputParams) {
         super(appName, inputParams);
 
         addOptionalCommandLineOption("fsrv","flinkServer", true,
                 "The flink server address. Must in format of [embed|local|remote::<host>:<port>] (default: embed).");
-        addRequiredCommandLineOption("snktp","sinkTopic", true,
-                "The sink Pulsar topic where the EShop ML model input data is sent to.");
+        addOptionalCommandLineOption("snktp","sinkTopic", true,
+                "The sink Pulsar topic where the processed output data is sent to.");
         addOptionalCommandLineOption("api","apiType", true,
-                "Flink processing API type [ds(DataStream API) - default, tbl(Table API), or sql(SQL API)].");
+                "Flink processing API type [ds(DataStream API) - default, or tbl(Table API)].");
         addOptionalCommandLineOption("wndt","windowType", true,
                 "Window type [etime(event_time) - default, count, or ptime(processing_time)].");
-        addRequiredCommandLineOption("wnds","windowSize", true,
+        addOptionalCommandLineOption("wnds","windowSize", true,
                 "The window size of the click numbers in the click stream.");
         addOptionalCommandLineOption("slds","slideSize", true,
                 "The slide size of the click numbers (within a window) in the click stream.");
-        addRequiredCommandLineOption("lnc","lastNCount", true,
+        addOptionalCommandLineOption("lnc","lastNCount", true,
                 "The last N count of the click numbers in the specified click stream window.");
     }
 
     public static void main(String[] args) {
-        EShopRecCmdApp workshopApp = new EShopRecModelProcessor(APP_NAME, args);
+        EShopCmdApp workshopApp = new EShopFlinkProcessor(APP_NAME, args);
         int exitCode = workshopApp.run();
         System.exit(exitCode);
     }
@@ -260,12 +257,12 @@ public class EShopRecModelProcessor extends EShopRecCmdApp {
 
         createStreamExecEnvironment();
 
-        if (eShopPulsarDsRawSource == null) {
-            eShopPulsarDsRawSource = createFlinkPulsarDsSource();
+        if (eShopPulsarDsInputSource == null) {
+            eShopPulsarDsInputSource = createFlinkPulsarDsSource();
         }
 
-        if (eshopPulsarDsRecModelSink == null) {
-            eshopPulsarDsRecModelSink = createFlinkPulsarDsSink();
+        if (eshopPulsarDsOutputSink == null) {
+            eshopPulsarDsOutputSink = createFlinkPulsarDsSink();
         }
 
         // Flink DataStream API
@@ -441,65 +438,61 @@ public class EShopRecModelProcessor extends EShopRecCmdApp {
     }
 
     private void processWithDataStreamAPI() throws UnexpectedRuntimException {
-        DataStream<EShopInputData> eShopRawDataStream;
+        DataStream<EShopInputData> eShopInputDataStream;
 
         if (StringUtils.equalsIgnoreCase(windowType, WINDOW_TYPE_COUNT)) {
-            eShopRawDataStream = dsEnv.fromSource(
-                    eShopPulsarDsRawSource,
+            eShopInputDataStream = dsEnv.fromSource(
+                    eShopPulsarDsInputSource,
                     WatermarkStrategy.noWatermarks(),
                     "(Pulsar) E-Shop Count Window No Watermark Strategy");
         }
         else if (StringUtils.equalsIgnoreCase(windowType, WINDOW_TYPE_PROCESS_TIME)) {
-            eShopRawDataStream = dsEnv.fromSource(
-                    eShopPulsarDsRawSource,
+            eShopInputDataStream = dsEnv.fromSource(
+                    eShopPulsarDsInputSource,
                     WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(5)),
                     "(Pulsar) E-Shop Process Time Window with BoundedOutOfOrderness Watermark Strategy");
         }
         else {
-            eShopRawDataStream = dsEnv.fromSource(
-                    eShopPulsarDsRawSource,
+            eShopInputDataStream = dsEnv.fromSource(
+                    eShopPulsarDsInputSource,
                     WatermarkStrategy.<EShopInputData>forBoundedOutOfOrderness(Duration.ofSeconds(5))
                             .withTimestampAssigner((event, timestamp) -> event.getEventTime()),
-                    "(Pulsar) E-Shop Event Time Window with BoundedOutOfOrderness Watermark Strategy");
+                    "(Pulsar) E-Shop Event Time Window with forBoundedOutOfOrderness Watermark Strategy");
         }
 
-        DataStream<EShopInputDataProjected> eShopRawDataProjectedDataStream =
-                eShopRawDataStream.map(new MapFunction<EShopInputData, EShopInputDataProjected>() {
-                    @Override
-                    public EShopInputDataProjected map(EShopInputData eShopRawData) throws Exception {
-                        return new EShopInputDataProjected(
-                                eShopRawData.getSession(),
-                                eShopRawData.getOrder(),
-                                eShopRawData.getCategory(),
-                                eShopRawData.getModel(),
-                                eShopRawData.getColor(),
-                                eShopRawData.getEventTime()
-                        );
-                    }
-                });
+        DataStream<EShopInputDataProjected> eShopInputDataProjectedDataStream =
+                eShopInputDataStream.map((MapFunction<EShopInputData, EShopInputDataProjected>) eShopInputData ->
+                    new EShopInputDataProjected(
+                        eShopInputData.getSession(),
+                        eShopInputData.getOrder(),
+                        eShopInputData.getCategory(),
+                        eShopInputData.getModel(),
+                        eShopInputData.getColor(),
+                        eShopInputData.getEventTime()
+                ));
 
-        DataStream<String> recModelDataStream;
+        DataStream<String> outputDataStream;
 
         if (StringUtils.equals(windowType, WINDOW_TYPE_COUNT)) {
-            recModelDataStream = eShopRawDataProjectedDataStream
+            outputDataStream = eShopInputDataProjectedDataStream
                     .keyBy(EShopInputDataProjected::getSession)
                     .countWindow(windowSize, slideSize)
-                    .aggregate(new EShopRecModelLastNAggregator(lastNCnt));
+                    .aggregate(new EShopLastNAggregator(lastNCnt));
         }
         else if (StringUtils.equalsIgnoreCase(windowType, WINDOW_TYPE_PROCESS_TIME)) {
-            recModelDataStream = eShopRawDataProjectedDataStream
+            outputDataStream = eShopInputDataProjectedDataStream
                     .keyBy(EShopInputDataProjected::getSession)
                     .window(TumblingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(slideSize)))
-                    .aggregate(new EShopRecModelLastNAggregator(lastNCnt));
+                    .aggregate(new EShopLastNAggregator(lastNCnt));
         }
         else {
-            recModelDataStream = eShopRawDataProjectedDataStream
+            outputDataStream = eShopInputDataProjectedDataStream
                     .keyBy(EShopInputDataProjected::getSession)
                     .window(TumblingEventTimeWindows.of(Time.seconds(windowSize), Time.seconds(slideSize)))
-                    .aggregate(new EShopRecModelLastNAggregator(lastNCnt));
+                    .aggregate(new EShopLastNAggregator(lastNCnt));
         }
 
-        recModelDataStream.sinkTo(eshopPulsarDsRecModelSink);
+        outputDataStream.sinkTo(eshopPulsarDsOutputSink);
 
         try {
             JobClient jobClient = dsEnv.executeAsync();
@@ -512,12 +505,12 @@ public class EShopRecModelProcessor extends EShopRecCmdApp {
         }
     }
 
-    private static class EShopRecModelLastNAggregator
+    private static class EShopLastNAggregator
         implements AggregateFunction<EShopInputDataProjected, Map<Integer, List<EShopInputDataProjected>>, String> {
         static ObjectMapper objectMapper = new ObjectMapper();
         static int lastNCnt;
 
-        public EShopRecModelLastNAggregator(int cnt) {
+        public EShopLastNAggregator(int cnt) {
             lastNCnt = cnt;
         }
 
@@ -719,7 +712,7 @@ public class EShopRecModelProcessor extends EShopRecCmdApp {
 //        //       Can't create an explicit table. Run into the following error consistently.
 //        //       Also, the corresponding Pulsar metadata topic is not created.
 //        //
-//        //       Flink SQL> CREATE TABLE eshopRawData
+//        //       Flink SQL> CREATE TABLE eshopInputData
 //        //       (
 //        //          `year`   	INTEGER,
 //        //          `month`  	INTEGER,
@@ -728,7 +721,7 @@ public class EShopRecModelProcessor extends EShopRecCmdApp {
 //        //          `eventTime`  BIGINT
 //        //       ) WITH (
 //        //	        'connector' = 'pulsar',
-//        //	        'topics' = 'persistent://public/default/eshop_raw',
+//        //	        'topics' = 'persistent://public/default/eshop_input',
 //        //	        'format' = 'avro'
 //        //       );
 //        //       [ERROR] Could not execute SQL statement. Reason:
@@ -746,14 +739,14 @@ public class EShopRecModelProcessor extends EShopRecCmdApp {
 //        String[] databases = tblEnv.listDatabases();
 //        String[] tables = tblEnv.listTables();
 //
-//        String eShopRawTblName = "eshopRawData";
-//        String sqlStr = getFlinkPulsarCrtTblSqlStr(eShopRawTblName);
+//        String eShopInputTblName = "eShopInputData";
+//        String sqlStr = getFlinkPulsarCrtTblSqlStr(eShopInputTblName);
 //        tblEnv.executeSql(sqlStr);
 //
-//        Table eShopRawTbl = tblEnv.sqlQuery("SELECT * FROM `eshop_raw`");// + eShopRawTblName);
-//        eShopRawTbl.fetch(5).execute();
+//        Table eShopInputTbl = tblEnv.sqlQuery("SELECT * FROM `eshop_input`");// + eShopInputTblName);
+//        eShopInputTbl.fetch(5).execute();
 //
-//        eShopRawTbl.printSchema();
+//        eShopInputTbl.printSchema();
 //
 //
 //        String sinkName = sinkPulsarTopic;

@@ -18,7 +18,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 
-public class EShopRawDataEnricher extends EShopRecCmdApp {
+public class EShopRawDataEnricher extends EShopCmdApp {
 
     private final static String APP_NAME = "EShopRawDataEnricher";
     static { System.setProperty("log_file_base_name", getLogFileName(API_TYPE, APP_NAME)); }
@@ -45,7 +45,7 @@ public class EShopRawDataEnricher extends EShopRecCmdApp {
     }
 
     public static void main(String[] args) throws IOException, ParseException {
-        EShopRecCmdApp workshopApp = new EShopRawDataEnricher(APP_NAME, args);
+        EShopCmdApp workshopApp = new EShopRawDataEnricher(APP_NAME, args);
         int exitCode = workshopApp.run();
         System.exit(exitCode);
     }

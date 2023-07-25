@@ -25,14 +25,14 @@ import java.util.concurrent.TimeoutException;
 
 import static org.apache.spark.sql.functions.*;
 
-public class SparkEShopRecModelPreparer extends SparkDemoCmdApp {
+public class SparkEShopModelPreparer extends SparkDemoCmdApp {
 
     private final static String APP_NAME = "EShopRecModelPreparer";
 
     // Must be set before initializing the "logger" object.
     static { System.setProperty("log_file_base_name", getLogFileName(API_TYPE, APP_NAME)); }
 
-    private final static Logger logger = LoggerFactory.getLogger(SparkEShopRecModelPreparer.class);
+    private final static Logger logger = LoggerFactory.getLogger(SparkEShopModelPreparer.class);
 
     private static SparkSession sparkSession;
     private StreamingQuery streamingQuery;
@@ -56,12 +56,12 @@ public class SparkEShopRecModelPreparer extends SparkDemoCmdApp {
     );
 
     public static void main(String[] args) {
-        SparkEShopRecModelPreparer workshopApp = new SparkEShopRecModelPreparer(args);
+        SparkEShopModelPreparer workshopApp = new SparkEShopModelPreparer(args);
         int exitCode = workshopApp.run();
         System.exit(exitCode);
     }
 
-    public SparkEShopRecModelPreparer(String[] inputParams) {
+    public SparkEShopModelPreparer(String[] inputParams) {
         super(APP_NAME, inputParams);
         // No new CLI parameters.
     }

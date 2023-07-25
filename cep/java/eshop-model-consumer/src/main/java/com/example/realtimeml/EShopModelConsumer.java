@@ -32,7 +32,7 @@ public class EShopModelConsumer extends EShopPulsarClientApp {
     }
 
     public static void main(String[] args) {
-        EShopRecCmdApp workshopApp = new EShopModelConsumer(APP_NAME, args);
+        EShopCmdApp workshopApp = new EShopModelConsumer(APP_NAME, args);
         int exitCode = workshopApp.run();
         System.exit(exitCode);
     }

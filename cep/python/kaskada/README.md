@@ -1,13 +1,13 @@
 
 - [1. Overview](#1-overview)
   - [1.1. Source Dataset](#11-source-dataset)
+  - [1.2. Dependency Python Libraries](#12-dependency-python-libraries)
 - [2. Set up the Environment](#2-set-up-the-environment)
   - [2.1. Infrastructure](#21-infrastructure)
-  - [2.2. Python Libraries](#22-python-libraries)
-  - [2.3. Create C\* Tables and Pulsar Topics](#23-create-c-tables-and-pulsar-topics)
-    - [2.3.1. Main Configuration File](#231-main-configuration-file)
-    - [2.3.2. C\* Table and Pulsar Topic Schema](#232-c-table-and-pulsar-topic-schema)
-  - [2.4. Load Soruce Data into the C\* Input Table](#24-load-soruce-data-into-the-c-input-table)
+  - [2.2. Create C\* Tables and Pulsar Topics](#22-create-c-tables-and-pulsar-topics)
+    - [2.2.1. Main Configuration File](#221-main-configuration-file)
+    - [2.2.2. C\* Table and Pulsar Topic Schema](#222-c-table-and-pulsar-topic-schema)
+  - [2.3. Load Soruce Data into the C\* Input Table](#23-load-soruce-data-into-the-c-input-table)
 - [3. Real-time Data Processing with Kaskada](#3-real-time-data-processing-with-kaskada)
   - [3.1. Kaskada Data Processing](#31-kaskada-data-processing)
     - [3.1.1. Kaskada Table with PulsarSource](#311-kaskada-table-with-pulsarsource)
@@ -42,6 +42,25 @@ For `Kaskada` based data processing, the following source data files are availab
 
 The only difference between these 2 files is one file doesn't have the title line while the other does.
 
+## 1.2. Dependency Python Libraries
+
+The demo programs in this testing scenario are Python based and require `python version 3.x` with the following python libraries pre-installed:
+```
+# Cassandra client driver
+pip install cassandra-driver
+
+# Pulsar client driver base and Avro Schema support
+pip install pulsar-client --upgrade
+pip install pulsar-client[avro] --upgrade
+
+# Kaskada client driver
+pip install kaskada --upgrade
+
+# Other python libraries
+pip install jproperties --upgrade
+pip install requests --upgrade
+```
+
 # 2. Set up the Environment
 
 ## 2.1. Infrastructure
@@ -61,29 +80,7 @@ For the `local Kaskada cluster`,
   *  [`deploy_kaskada_local.sh`](../../../_bash/infra/kaskada/deploy_kaskada_local.sh)
   *  [`teardown_kaskada_local.sh`](../../../_bash/infra/kaskada/teardown_kaskada_local.sh)
 
-## 2.2. Python Libraries
-
-The demo python programs require the following libraries to be installed in advance:
-```
-# Cassandra client driver
-pip install cassandra-driver
-
-
-# Pulsar client driver base and Avro Schema support
-pip install pulsar-client --upgrade
-pip install pulsar-client[avro] --upgrade
-
-
-# Kaskada client driver
-pip install kaskada --upgrade
-
-
-# Other python libraries
-pip install jproperties --upgrade
-pip install requests --upgrade
-```
-
-## 2.3. Create C* Tables and Pulsar Topics
+## 2.2. Create C* Tables and Pulsar Topics
 
 Before the core real-time data processing happens in Kaskada, we need to do some preparation work such as:
 * Create C* tables, "Input Table" and "Output Table"
@@ -125,9 +122,9 @@ Among these parameters,
   * `-rsf` specifies the raw data source file path
   * `-ldn` specifies how many records to be loaded
 
-### 2.3.1. Main Configuration File
+### 2.2.1. Main Configuration File
 
-The following required information is provide via the main configuration file:
+The following required information is provided via the main configuration file:
 * C* related information
  * The connection information to the Astra DB database
  * The names of the C* keyspace, input table, and output table
@@ -142,7 +139,7 @@ The following required information is provide via the main configuration file:
 
 A template of the main configuration file is provided for reference: [main-cfg.properties.template](./conf/main-cfg.properties.template)
 
-### 2.3.2. C* Table and Pulsar Topic Schema
+### 2.2.2. C* Table and Pulsar Topic Schema
 
 In this demo, the C* tables and Pulsar topics (must) have matching schemas. 
 
@@ -167,7 +164,7 @@ If so, their schema definition is as below:
 
 Otherwise, the Pulsar topic schemas will be implicitly created via `mainProc.py` program when running the workload (more on this in the next chapter)
 
-## 2.4. Load Soruce Data into the C* Input Table
+## 2.3. Load Soruce Data into the C* Input Table
 
 By default, when running the `prepEnv.py` program, it only creates the C* and/or Pulsar resources. But it can also be used to load the source dataset into the C* "Input Table" by providing the following input parameters:
 

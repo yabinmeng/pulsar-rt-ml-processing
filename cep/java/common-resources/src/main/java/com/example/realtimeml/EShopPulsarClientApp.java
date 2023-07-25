@@ -1,17 +1,8 @@
 package com.example.realtimeml;
 
 import com.example.realtimeml.exception.InvalidParamException;
-import com.example.realtimeml.util.ClientConnConf;
-import org.apache.commons.cli.*;
-import org.apache.commons.lang3.BooleanUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 
-import java.io.File;
-
-abstract public class EShopPulsarClientApp extends EShopRecCmdApp {
+abstract public class EShopPulsarClientApp extends EShopCmdApp {
 
     protected final static String API_TYPE = "eShopRec";
 
@@ -23,7 +14,7 @@ abstract public class EShopPulsarClientApp extends EShopRecCmdApp {
     public EShopPulsarClientApp(String appName, String[] inputParams) {
         super(appName, inputParams);
 
-        addRequiredCommandLineOption("n","numMsg", true, "Number of messages to process.");
+        addOptionalCommandLineOption("n","numMsg", true, "Number of messages to process.");
     }
 
     public void processExtendedInputParams() throws InvalidParamException {
