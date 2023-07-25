@@ -47,9 +47,6 @@ public class EShopFlinkProcessor extends EShopCmdApp {
 
     private final static Logger logger = LoggerFactory.getLogger(EShopFlinkProcessor.class);
 
-    private final static String FLINK_API_TYPE_DS ="ds";
-    private final static String FLINK_API_TYPE_SQL ="sql";
-
     private final static String WINDOW_TYPE_EVENT_TIME ="etime";
     private final static String WINDOW_TYPE_COUNT ="count";
     private final static String WINDOW_TYPE_PROCESS_TIME ="ptime";
@@ -68,9 +65,6 @@ public class EShopFlinkProcessor extends EShopCmdApp {
 
     private String sinkPulsarTopic;
     private String windowType;
-
-    // Use to indicate whether Flink DataStream API or Table API
-    private String apiType;
 
     // > When 'windowType' is 'count',
     //   * 'windowSize' and 'slideSize' represents the count of the events,
@@ -92,8 +86,6 @@ public class EShopFlinkProcessor extends EShopCmdApp {
     private PulsarSource<EShopInputData> eShopPulsarDsInputSource;
     private PulsarSink<String> eshopPulsarDsOutputSink;
 
-    private StreamTableEnvironment tblEnv;
-
     public EShopFlinkProcessor(String appName, String[] inputParams) {
         super(appName, inputParams);
 
@@ -101,8 +93,6 @@ public class EShopFlinkProcessor extends EShopCmdApp {
                 "The flink server address. Must in format of [embed|local|remote::<host>:<port>] (default: embed).");
         addOptionalCommandLineOption("snktp","sinkTopic", true,
                 "The sink Pulsar topic where the processed output data is sent to.");
-        addOptionalCommandLineOption("api","apiType", true,
-                "Flink processing API type [ds(DataStream API) - default, or tbl(Table API)].");
         addOptionalCommandLineOption("wndt","windowType", true,
                 "Window type [etime(event_time) - default, count, or ptime(processing_time)].");
         addOptionalCommandLineOption("wnds","windowSize", true,
@@ -201,15 +191,6 @@ public class EShopFlinkProcessor extends EShopCmdApp {
             throw new InvalidParamException("Invalid sink Pulsar topic parameter (\"-st\")!");
         }
 
-        // Optional - flink API type (default to the DataStream API)
-        apiType = processStringInputParam("api", FLINK_API_TYPE_DS);
-        if (!StringUtils.equalsAnyIgnoreCase(apiType, FLINK_API_TYPE_DS, FLINK_API_TYPE_SQL)) {
-            throw new InvalidParamException(
-                    "The flink api type (\"api\") must be one of the following values: " +
-                            "\"" + FLINK_API_TYPE_DS + "\" (default), " +
-                            "\"" + FLINK_API_TYPE_SQL + "\"!");
-        }
-
         // Optional - Window type (default to \"etime\" (event_time))
         windowType = processStringInputParam("wndt", WINDOW_TYPE_EVENT_TIME);
         if (!StringUtils.equalsAnyIgnoreCase(windowType, WINDOW_TYPE_EVENT_TIME, WINDOW_TYPE_COUNT, WINDOW_TYPE_PROCESS_TIME)) {
@@ -246,11 +227,9 @@ public class EShopFlinkProcessor extends EShopCmdApp {
     @Override
     public void runApp() throws UnexpectedRuntimException {
         logger.info("Starting flink stream processing application: \"" + appName + "\" ...");
-        logger.info("- parameters: sinkTopic: {}, windowType: {}, api type: {}, " +
-                        "windowSize: {}, slideSize: {}, lastNCnt: {}",
+        logger.info("- parameters: sinkTopic: {}, windowType: {}, windowSize: {}, slideSize: {}, lastNCnt: {}",
                 sinkPulsarTopic,
                 windowType,
-                apiType,
                 windowSize,
                 slideSize,
                 lastNCnt);
@@ -265,14 +244,74 @@ public class EShopFlinkProcessor extends EShopCmdApp {
             eshopPulsarDsOutputSink = createFlinkPulsarDsSink();
         }
 
-        // Flink DataStream API
-        if (StringUtils.equalsAnyIgnoreCase(apiType, FLINK_API_TYPE_DS)) {
-            processWithDataStreamAPI();
+        // Choose the proper WaterMark strategy based on the window type
+        DataStream<EShopInputData> eShopInputDataStream;
+        if (StringUtils.equalsIgnoreCase(windowType, WINDOW_TYPE_COUNT)) {
+            eShopInputDataStream = dsEnv.fromSource(
+                    eShopPulsarDsInputSource,
+                    WatermarkStrategy.noWatermarks(),
+                    "(Pulsar) E-Shop Count Window No Watermark Strategy");
         }
-//        // Flink Table API (and Flink SQL)
-//        else {
-//            processWithTableAPI();
-//        }
+        else if (StringUtils.equalsIgnoreCase(windowType, WINDOW_TYPE_PROCESS_TIME)) {
+            eShopInputDataStream = dsEnv.fromSource(
+                    eShopPulsarDsInputSource,
+                    WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(5)),
+                    "(Pulsar) E-Shop Process Time Window with BoundedOutOfOrderness Watermark Strategy");
+        }
+        else {
+            eShopInputDataStream = dsEnv.fromSource(
+                    eShopPulsarDsInputSource,
+                    WatermarkStrategy.<EShopInputData>forBoundedOutOfOrderness(Duration.ofSeconds(5))
+                            .withTimestampAssigner((event, timestamp) -> event.getEventTime()),
+                    "(Pulsar) E-Shop Event Time Window with forBoundedOutOfOrderness Watermark Strategy");
+        }
+
+        // Stream transformation: field projection
+        DataStream<EShopInputDataProjected> eShopInputDataProjectedDataStream =
+                eShopInputDataStream.map((MapFunction<EShopInputData, EShopInputDataProjected>) eShopInputData ->
+                        new EShopInputDataProjected(
+                                eShopInputData.getSession(),
+                                eShopInputData.getOrder(),
+                                eShopInputData.getCategory(),
+                                eShopInputData.getModel(),
+                                eShopInputData.getColor(),
+                                eShopInputData.getEventTime()
+                        ));
+
+        // Further stream transformation (keyBy) and custom window aggregation
+        DataStream<String> outputDataStream;
+        if (StringUtils.equals(windowType, WINDOW_TYPE_COUNT)) {
+            outputDataStream = eShopInputDataProjectedDataStream
+                    .keyBy(EShopInputDataProjected::getSession)
+                    .countWindow(windowSize, slideSize)
+                    .aggregate(new EShopLastNAggregator(lastNCnt));
+        }
+        else if (StringUtils.equalsIgnoreCase(windowType, WINDOW_TYPE_PROCESS_TIME)) {
+            outputDataStream = eShopInputDataProjectedDataStream
+                    .keyBy(EShopInputDataProjected::getSession)
+                    .window(TumblingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(slideSize)))
+                    .aggregate(new EShopLastNAggregator(lastNCnt));
+        }
+        else {
+            outputDataStream = eShopInputDataProjectedDataStream
+                    .keyBy(EShopInputDataProjected::getSession)
+                    .window(TumblingEventTimeWindows.of(Time.seconds(windowSize), Time.seconds(slideSize)))
+                    .aggregate(new EShopLastNAggregator(lastNCnt));
+        }
+
+        // Save the output data stream to the target Pulsar topic via the sink connector
+        outputDataStream.sinkTo(eshopPulsarDsOutputSink);
+
+        // Kick off the Flink Job
+        try {
+            JobClient jobClient = dsEnv.executeAsync();
+            JobExecutionResult jobExecutionResult =
+                    jobClient.getJobExecutionResult().get();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            throw new UnexpectedRuntimException("Unexpected flink job exception!");
+        }
     }
 
     @Override
@@ -309,10 +348,6 @@ public class EShopFlinkProcessor extends EShopCmdApp {
             // The default parallelism seems too high; and it may cause event_time based windowing
             // not being triggered.
             dsEnv.setParallelism(2);
-
-            if (tblEnv == null) {
-                tblEnv = StreamTableEnvironment.create(dsEnv);
-            }
         }
     }
 
@@ -437,74 +472,6 @@ public class EShopFlinkProcessor extends EShopCmdApp {
         return builder.build();
     }
 
-    private void processWithDataStreamAPI() throws UnexpectedRuntimException {
-        DataStream<EShopInputData> eShopInputDataStream;
-
-        if (StringUtils.equalsIgnoreCase(windowType, WINDOW_TYPE_COUNT)) {
-            eShopInputDataStream = dsEnv.fromSource(
-                    eShopPulsarDsInputSource,
-                    WatermarkStrategy.noWatermarks(),
-                    "(Pulsar) E-Shop Count Window No Watermark Strategy");
-        }
-        else if (StringUtils.equalsIgnoreCase(windowType, WINDOW_TYPE_PROCESS_TIME)) {
-            eShopInputDataStream = dsEnv.fromSource(
-                    eShopPulsarDsInputSource,
-                    WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(5)),
-                    "(Pulsar) E-Shop Process Time Window with BoundedOutOfOrderness Watermark Strategy");
-        }
-        else {
-            eShopInputDataStream = dsEnv.fromSource(
-                    eShopPulsarDsInputSource,
-                    WatermarkStrategy.<EShopInputData>forBoundedOutOfOrderness(Duration.ofSeconds(5))
-                            .withTimestampAssigner((event, timestamp) -> event.getEventTime()),
-                    "(Pulsar) E-Shop Event Time Window with forBoundedOutOfOrderness Watermark Strategy");
-        }
-
-        DataStream<EShopInputDataProjected> eShopInputDataProjectedDataStream =
-                eShopInputDataStream.map((MapFunction<EShopInputData, EShopInputDataProjected>) eShopInputData ->
-                    new EShopInputDataProjected(
-                        eShopInputData.getSession(),
-                        eShopInputData.getOrder(),
-                        eShopInputData.getCategory(),
-                        eShopInputData.getModel(),
-                        eShopInputData.getColor(),
-                        eShopInputData.getEventTime()
-                ));
-
-        DataStream<String> outputDataStream;
-
-        if (StringUtils.equals(windowType, WINDOW_TYPE_COUNT)) {
-            outputDataStream = eShopInputDataProjectedDataStream
-                    .keyBy(EShopInputDataProjected::getSession)
-                    .countWindow(windowSize, slideSize)
-                    .aggregate(new EShopLastNAggregator(lastNCnt));
-        }
-        else if (StringUtils.equalsIgnoreCase(windowType, WINDOW_TYPE_PROCESS_TIME)) {
-            outputDataStream = eShopInputDataProjectedDataStream
-                    .keyBy(EShopInputDataProjected::getSession)
-                    .window(TumblingProcessingTimeWindows.of(Time.seconds(windowSize), Time.seconds(slideSize)))
-                    .aggregate(new EShopLastNAggregator(lastNCnt));
-        }
-        else {
-            outputDataStream = eShopInputDataProjectedDataStream
-                    .keyBy(EShopInputDataProjected::getSession)
-                    .window(TumblingEventTimeWindows.of(Time.seconds(windowSize), Time.seconds(slideSize)))
-                    .aggregate(new EShopLastNAggregator(lastNCnt));
-        }
-
-        outputDataStream.sinkTo(eshopPulsarDsOutputSink);
-
-        try {
-            JobClient jobClient = dsEnv.executeAsync();
-            JobExecutionResult jobExecutionResult =
-                    jobClient.getJobExecutionResult().get();
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            throw new UnexpectedRuntimException("Unexpected flink job exception!");
-        }
-    }
-
     private static class EShopLastNAggregator
         implements AggregateFunction<EShopInputDataProjected, Map<Integer, List<EShopInputDataProjected>>, String> {
         static ObjectMapper objectMapper = new ObjectMapper();
@@ -601,6 +568,8 @@ public class EShopFlinkProcessor extends EShopCmdApp {
     }
 
     /*
+     * Custom watermark strategy (not used in this demo yet)
+     * -------------------------------------
     private static class EShopDataWatermarkStrategy implements WatermarkStrategy<EShopInputData> {
 
         @Override
@@ -612,147 +581,5 @@ public class EShopFlinkProcessor extends EShopCmdApp {
         public WatermarkGenerator<EShopInputData> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
             return null;
         }
-    }
-    */
-
-//
-//    /**
-//     * Table API related code blocks
-//     */
-//    private void createAndRegisterPulsarCatalog(String catalogName, String dftDataBase) {
-//        assert (StringUtils.isNotBlank(dftDataBase));
-//
-//        Optional<Catalog> catalogOpt = tblEnv.getCatalog(catalogName);
-//        if (!catalogOpt.isPresent()) {
-//            // TBD: What if the Pulsar cluster has TLS enabled?
-//            //      It looks like SN's pulsar sql connector API doesn't have a way to pass in TLS certificates
-//            //         and corresponding TLS related settings
-//            String pulsarSvcUrl = clientConnConf.getValue("brokerServiceUrl");
-//            String pulsarWebUrl = clientConnConf.getValue("webServiceUrl");
-//            String authPlugin = clientConnConf.getValue("authPlugin");
-//            String authParams = clientConnConf.getValue("authParams");
-//
-//            Catalog catalog;
-//            if (!StringUtils.isAnyBlank(authPlugin, authParams)) {
-//                authPlugin = null;
-//                authParams = null;
-//            }
-//
-//            catalog = new PulsarCatalog(
-//                    catalogName,
-//                    pulsarWebUrl,
-//                    pulsarSvcUrl,
-//                    dftDataBase,            // default database (pulsar namespace)
-//                    "__flink_catalog",      // catalog tenant
-//                    authPlugin,
-//                    authParams);
-//
-//            tblEnv.registerCatalog(catalogName, catalog);
-//        }
-//    }
-//
-//    private String getFlinkPulsarCrtTblSqlStr(String tableName) {
-//
-//        String sqlCrtTblBaseStr = "CREATE TABLE " + tableName + "\n" +
-//                "(\n" +
-//                "  `year`       INTEGER,\n" +
-//                "  `month`      INTEGER,\n" +
-//                "  `day`        INTEGER,\n" +
-//                "  `order`      INTEGER,\n" +
-//                "  `country`    INTEGER,\n" +
-//                "  `session`    INTEGER,\n" +
-//                "  `category`   INTEGER,\n" +
-//                "  `model`      VARCHAR,\n" +
-//                "  `color`      INTEGER,\n" +
-//                "  `location`   INTEGER,\n" +
-//                "  `modelPhoto` INTEGER,\n" +
-//                "  `price`      INTEGER,\n" +
-//                "  `priceInd`   INTEGER,\n" +
-//                "  `page`       INTEGER,\n" +
-//                "  `eventTime`  BIGINT\n" +
-//                ")";
-//
-//        String pulsarSvcUrl = clientConnConf.getValue("brokerServiceUrl");
-//        String pulsarWebUrl = clientConnConf.getValue("webServiceUrl");
-//        String authPlugin = clientConnConf.getValue("authPlugin");
-//        String authParams = clientConnConf.getValue("authParams");
-//
-//        String fullFlinkPulsarTblStr = sqlCrtTblBaseStr +
-//                " WITH (\n" +
-//                "    'connector' = 'pulsar',\n" +
-//                "    'topics' = '" + tableName + "',\n" +
-//                "    'service-url' = '" + pulsarSvcUrl + "',\n" +
-//                "    'admin-url' = '" + pulsarWebUrl + "',\n";
-//
-//        if (!StringUtils.isAnyBlank(authPlugin, authParams)) {
-//            fullFlinkPulsarTblStr = fullFlinkPulsarTblStr +
-//                    "    'auth-plugin' = '" + authPlugin + "',\n" +
-//                    "    'authParams' = '" + authParams + "',\n";
-//        }
-//
-//        fullFlinkPulsarTblStr = fullFlinkPulsarTblStr +
-//                "    'value.format' = 'json',\n" +
-//                "    'value.json.fail-on-missing-field' = 'false'\n" +
-//                ");";
-//
-//        return fullFlinkPulsarTblStr;
-//    }
-//
-//    private void processWithTableAPI() throws UnexpectedRuntimException {
-//
-//        String catalogNameSrc = "pulsar";
-//        String sourceName = topicName;
-//        if (StringUtils.contains(topicName, "://")) {
-//            sourceName = StringUtils.substringAfter(topicName, "://");
-//        }
-//
-//        ///////////////////////////////////////////
-//        // NOTE: Can't really make it work with Flink Pulsar SQL Connector
-//        //
-//        //       Can't create an explicit table. Run into the following error consistently.
-//        //       Also, the corresponding Pulsar metadata topic is not created.
-//        //
-//        //       Flink SQL> CREATE TABLE eshopInputData
-//        //       (
-//        //          `year`   	INTEGER,
-//        //          `month`  	INTEGER,
-//        //          … …
-//        //          … …
-//        //          `eventTime`  BIGINT
-//        //       ) WITH (
-//        //	        'connector' = 'pulsar',
-//        //	        'topics' = 'persistent://public/default/eshop_input',
-//        //	        'format' = 'avro'
-//        //       );
-//        //       [ERROR] Could not execute SQL statement. Reason:
-//        //       java.lang.ClassNotFoundException: org.apache.flink.table.runtime.util.JsonUtils
-//        //	            ... 20 more
-//        //
-//        //       End of exception on server side>]
-//        ///////////////////////////////////////////
-//
-//        String defaultDatabase =
-//                StringUtils.substringBeforeLast(topicName, "/");
-//        createAndRegisterPulsarCatalog(catalogNameSrc, defaultDatabase);
-//
-//        tblEnv.useCatalog(catalogNameSrc);
-//        String[] databases = tblEnv.listDatabases();
-//        String[] tables = tblEnv.listTables();
-//
-//        String eShopInputTblName = "eShopInputData";
-//        String sqlStr = getFlinkPulsarCrtTblSqlStr(eShopInputTblName);
-//        tblEnv.executeSql(sqlStr);
-//
-//        Table eShopInputTbl = tblEnv.sqlQuery("SELECT * FROM `eshop_input`");// + eShopInputTblName);
-//        eShopInputTbl.fetch(5).execute();
-//
-//        eShopInputTbl.printSchema();
-//
-//
-//        String sinkName = sinkPulsarTopic;
-//        if (StringUtils.contains(sinkPulsarTopic, "://")) {
-//            sinkName = StringUtils.substringAfter(sinkPulsarTopic, "://");
-//        }
-//        Catalog eShopPulsarTblCatalogSink = createAndRegisterPulsarCatalog(catalogNameSrc, sinkName);
-//    }
+    }*/
 }

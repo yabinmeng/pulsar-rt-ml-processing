@@ -6,10 +6,10 @@
 - [3. Publish the Online Shopping Click-stream Data](#3-publish-the-online-shopping-click-stream-data)
   - [3.1. Pulsar Input Topic Schema](#31-pulsar-input-topic-schema)
 - [4. Real-time Data Processing with Flink](#4-real-time-data-processing-with-flink)
-  - [4.1. Window based "LastN" Record Aggreggation](#41-window-based-lastn-record-aggreggation)
-  - [4.2. EShop Processing Program](#42-eshop-processing-program)
+  - [4.1. Window based "LastN" Record Aggregation](#41-window-based-lastn-record-aggregation)
+  - [4.2. EShop Flink Processing Program](#42-eshop-flink-processing-program)
   - [4.3. Flink DataStream API](#43-flink-datastream-api)
-    - [4.3.1. Create a PulsarSource and a PulsarSink Conenctor](#431-create-a-pulsarsource-and-a-pulsarsink-conenctor)
+    - [4.3.1. Create a PulsarSource and a PulsarSink Connector](#431-create-a-pulsarsource-and-a-pulsarsink-connector)
       - [4.3.1.1. Avro Schema Serialization and Deserialization](#4311-avro-schema-serialization-and-deserialization)
     - [4.3.2. WaterMark Strategy](#432-watermark-strategy)
     - [4.3.3. Stream Transformation and Aggregation](#433-stream-transformation-and-aggregation)
@@ -18,9 +18,7 @@
   - [4.4. Flink Table API](#44-flink-table-api)
 - [5. Exploration with Flink SQL](#5-exploration-with-flink-sql)
 
-
 ---
-
 
 # 1. Overview
 
@@ -31,9 +29,9 @@ The high level architecture of this demo and the overall data processing workflo
 
 1. The raw source data (a CSV file) is read and loaded into a Pulsar topic ("Input Topic") via a Pulsar producer client application.
 2. The messages in the Pulsar Input Topic is streamed into a Flink table via the Flink Pulsar Source connector.
-3. Apache Flink processes the input data accrording to the required business requirements
+3. Apache Flink processes the input data according to the required business requirements
 4. The processed data is written back into another Pulsar topic ("Output Topic") via the Flink Pulsar Sink connector
-5. (Optionally), a Pulsar consumer client application can read the processed data from the Pulsar Output Topic for furhter downstream processing (eg. a recommendation engine)
+5. (Optionally), a Pulsar consumer client application can read the processed data from the Pulsar Output Topic for further downstream processing (e.g. a recommendation engine)
 
 ## 1.1. Source Dataset
 
@@ -47,11 +45,13 @@ The only difference between these 2 files is one file doesn't have the title lin
 
 ## 1.2. Build the Demo Programs
 
-The demo programs in this testing scenario are Java based and reuqire `JDK 11`. In order to build the programs, go to the [cep/java](../../java/) subfolder in the CLI command prompt and run the following command:
+The demo programs in this testing scenario are Java based and require `JDK 11`. In order to build the programs, go to the [cep/java](../../java/) subfolder in the CLI command prompt and run the following command:
 
 ```
 $ mvn clean install
 ```
+
+---
 
 # 2. Set up the Environment
 
@@ -59,7 +59,7 @@ $ mvn clean install
 
 In order to run this demo, we need to set up 2 clusters:
 
-* One Apache Pulsar cluster. We can either creat a `Astra Streaming tenant` or set up our own K8s-based Pulsar cluster for this purpose.
+* One Apache Pulsar cluster. We can either create a `Astra Streaming tenant` or set up our own K8s-based Pulsar cluster for this purpose.
 * One Apache Flink cluster. We'll deploy a Flink cluster on K8s with 1 job manager and 2 task managers.
 
 For the `Astra Pulsar cluster`, 
@@ -71,6 +71,8 @@ For the `Astra Pulsar cluster`,
 For the `Apache Flink cluster`, assuming a K8s cluster is up and running, and ready to connect, run the following helper bash scripts to start or stop the Flink cluster:
 *  [`deploy_flink_k8s.sh`](../../../_bash/infra/flink/deploy_flink_k8s.sh)
 *  [`teardown_flink_k8s.sh`](../../../_bash/infra/flink/teardown_flink_k8s.sh)
+
+---
 
 # 3. Publish the Online Shopping Click-stream Data
 
@@ -174,29 +176,30 @@ The `EShopInputProducer` program will publish the messages to the Pulsar "Input 
 }
 ```
 
+---
+
 # 4. Real-time Data Processing with Flink
 
-## 4.1. Window based "LastN" Record Aggreggation
+## 4.1. Window based "LastN" Record Aggregation
 
-For this particular online shopping click-stream data, we're going to do a `LastN` type of analysis using Apache Flink. Basically for the incoming online shopping data, we want to get the `most recent N` records for each shopping session (sharing the same `session` field value) and aggregate/consolidate them togther in certain ways. 
+For this particular online shopping click-stream data, we're going to do a `LastN` type of analysis using Apache Flink. Basically for the incoming online shopping data, we want to get the `most recent N` records for each shopping session (sharing the same `session` field value) and aggregate/consolidate them together in certain ways. 
 
 The aggregation/consolidation needs to be executed based on a "Windowing" strategy and the result will be put in a JSON string (and sends to the target Pulsar "Output Topic"). 
 
 In this demo, there are 3 "Windowing" strategy depending on what type of "window" is used:
 * `countWindow`: This is a global window only based on record count, but not based on the record time.
 * `TumblingProcessingTimeWindows`: This is a Tumbling window based on the `processing time` of the incoming data records. 
-* `TumblingEventTimeWindows`: This is a Tumbling window based on the `event time` of the incoming data records. The `event time` of an incoming recrod is marked by its `event_time` field.
+* `TumblingEventTimeWindows`: This is a Tumbling window based on the `event time` of the incoming data records. The `event time` of an incoming record is marked by its `event_time` field.
 
-## 4.2. EShop Processing Program
+## 4.2. EShop Flink Processing Program
 
 The next demo program, `EShopFlinkProcessor`, is used to showcase the above analysis via the API integration between Apache Pulsar and Apache Flink. This program takes the following CLI parameters:
 
 ```
 $ java -cp flink-pulsar/target/flink-pulsar-1.0.0.jar com.example.realtimeml.EShopFlinkProcessor -h
-usage: EShopFlinkProcessor [-api <arg>] [-as] [-fsrv <arg>] [-h] [-lnc <arg>] [-pc <arg>] [-slds <arg>] [-snktp <arg>] [-tp <arg>] [-wnds <arg>]
+usage: EShopFlinkProcessor [-as] [-fsrv <arg>] [-h] [-lnc <arg>] [-pc <arg>] [-slds <arg>] [-snktp <arg>] [-tp <arg>] [-wnds <arg>]
        [-wndt <arg>]
 Command Line Options:
-  -api,--apiType <arg>       Flink processing API type [ds(DataStream API) - default, or tbl(Table API)].
   -as,--astra                Whether to use Astra streaming.
   -fsrv,--flinkServer <arg>  The flink server address. Must in format of [embed|local|remote::<host>:<port>] (default: embed).
   -h,--help                  Displays the usage method.
@@ -215,29 +218,29 @@ Among these parameters,
 * `-tp` is the name of the Pulsar "Input Topic".
 * `-snktp` is the name of the Pulsar "Output Topic".
 * `-fsrv` specifies the Flink server address. There are 3 possible values:
-   * `embed`: launches an embeded Flink server (which means an external Flink server is not needed)
+   * `embed`: launches an embedded Flink server (which means an external Flink server is not needed)
    * `local`: the target Flink server is installed on the local PC. 
    * `remote::<host>:<port>`: the target Flink server is installed remotely and can be connected via the specified host address and port
 * `-api` indicates which Flink API type to use. The default is the low level DataStream API (`ds`). The other option is the table API (`tbl`).
 * `-lnc` specifies the count of the records in `LastN` analysis.
 * `-wndt` specifies the type of the window used in the `LastN` analysis. There are 3 window types as we discussed in the previous section:
    * `count`: Global count based window (not time based window)
-   * `etime`: Recrod event time based `tumbling window`
+   * `etime`: Record event time based `tumbling window`
    * `ptime`: Record processing time based `tumbling window`
-* `-wnds` specifies the size of the window, and it is only releveant when the window type is time based type. 
-* `-slds` specifies the slide size of the window, and it is only releveant when the window type is time based type.
+* `-wnds` specifies the size of the window, and it is only relevant when the window type is time based type. 
+* `-slds` specifies the slide size of the window, and it is only relevant when the window type is time based type.
 
 Please **NOTE** that,
  * When the window type is count based (`count`), the window size or the slide size is a positive number
- * When the window type is time based (`etime`, `ptime`), the window size or the slide size is a time duratation in the following format: `<positive_number>[s|m|h|d]`
+ * When the window type is time based (`etime`, `ptime`), the window size or the slide size is a time duration in the following format: `<positive_number>[s|m|h|d]`
 
 ## 4.3. Flink DataStream API
 
-### 4.3.1. Create a PulsarSource and a PulsarSink Conenctor
+### 4.3.1. Create a PulsarSource and a PulsarSink Connector
 
 Flink has built-in Pulsar Connector, both as [source](https://nightlies.apache.org/flink/flink-docs-release-1.17/docs/connectors/datastream/pulsar/#pulsar-source) and as [sink](https://nightlies.apache.org/flink/flink-docs-release-1.17/docs/connectors/datastream/pulsar/#pulsar-source) that is based on Flink's DataStream API. 
 
-From Pulsar perspective, the Flink PulsarSource connector is simply a consumer and the Flink PulsarSink connector is simply a producer. The code of creating these conenctors are quite straightforward and [PulsarSourceBuilder](https://nightlies.apache.org/flink/flink-docs-release-1.17/api/java/org/apache/flink/connector/pulsar/source/PulsarSourceBuilder.html) and [PulsarSinkBuilder](https://nightlies.apache.org/flink/flink-docs-release-1.17/api/java/index.html?org/apache/flink/connector/pulsar/sink/PulsarSinkBuilder.html) are the Flink APIs to do this job.
+From Pulsar perspective, the Flink PulsarSource connector is simply a consumer and the Flink PulsarSink connector is simply a producer. The code of creating these connectors are quite straightforward and [PulsarSourceBuilder](https://nightlies.apache.org/flink/flink-docs-release-1.17/api/java/org/apache/flink/connector/pulsar/source/PulsarSourceBuilder.html) and [PulsarSinkBuilder](https://nightlies.apache.org/flink/flink-docs-release-1.17/api/java/index.html?org/apache/flink/connector/pulsar/sink/PulsarSinkBuilder.html) are the Flink APIs to do this job.
 
 #### 4.3.1.1. Avro Schema Serialization and Deserialization
 
@@ -266,7 +269,7 @@ sinkBuilder.setSerializationSchema(
 
 A watermark in streaming processing is a mechanism that helps to determine which events in a stream are still relevant for processing. This is important because in streaming data, events can arrive out of order or be delayed. A watermark allows a streaming system to ignore events that are too late to be relevant for processing.
 
-In this demo, we use Flink's built-in watermark genearation strategy of [Fixed Amount of Lateness](https://nightlies.apache.org/flink/flink-docs-release-1.17/docs/dev/datastream/event-time/built_in/#fixed-amount-of-lateness).
+In this demo, we use Flink's built-in watermark generation strategy of [Fixed Amount of Lateness](https://nightlies.apache.org/flink/flink-docs-release-1.17/docs/dev/datastream/event-time/built_in/#fixed-amount-of-lateness).
 
 The actual watermark strategy is a little different depending on the Windowing type being used. The code snippet is as below:
 
@@ -286,7 +289,7 @@ eShopInputDataStream = dsEnv.fromSource(
                     "(Pulsar) E-Shop Process Time Window with BoundedOutOfOrderness Watermark Strategy");
 ```
 
-* For "event time" based windowing, the wartermark stamp is based on incoming event's own timestamp
+* For "event time" based windowing, the watermark stamp is based on incoming event's own timestamp
 
 ```
 eShopPulsarDsInputSource,
@@ -316,7 +319,7 @@ DataStream<EShopInputDataProjected> eShopInputDataProjectedDataStream =
                 ));
 ```
 
-The `data aggregation` processing is a bit complicated and there is no built-in aggregation function to use. We need to create a custom window aggregation funciton which needs to implement the interface of [AggregateFunction](https://nightlies.apache.org/flink/flink-docs-release-1.17/api/java/org/apache/flink/api/common/functions/AggregateFunction.html). In this demo, the class `EShopLastNAggregator` is created for this purpose. The high level structure of this function is as below. For more details, please check the [source code](./src/main/java/com/example/realtimeml/EShopFlinkProcessor.java).
+The `data aggregation` processing is a bit complicated and there is no built-in aggregation function to use. We need to create a custom window aggregation function which needs to implement the interface of [AggregateFunction](https://nightlies.apache.org/flink/flink-docs-release-1.17/api/java/org/apache/flink/api/common/functions/AggregateFunction.html). In this demo, the class `EShopLastNAggregator` is created for this purpose. The high level structure of this function is as below. For more details, please check the [source code](./src/main/java/com/example/realtimeml/EShopFlinkProcessor.java).
 
 ```
  private static class EShopLastNAggregator
@@ -341,7 +344,7 @@ The `data aggregation` processing is a bit complicated and there is no built-in 
 
 ### 4.3.4. Generate the Output Stream
 
-With the above stream transformation and aggregation funciton in place, we can get the desired output stream that will satisfy our needs:
+With the above stream transformation and aggregation function in place, we can get the desired output stream that will satisfy our needs:
 
 * For `global count` based windowing,
 ```
@@ -375,9 +378,14 @@ Last but not the least, the processed data can be written back to Pulsar using t
 outputDataStream.sinkTo(eshopPulsarDsOutputSink);
 ```
 
+In the future, we'll explore using Flink's high level API, Table API, to do the same job.
+
 ## 4.4. Flink Table API
 
-TBD ...
+In the previous section, we explored the integration between Apache Pulsar and Apache Flink using Flink's low level API, the `DataStream API`. In this section, we'll explore the integration using Flink's high level API, the `Table API`.
+
+**TBD**: Please stay tuned!
+
+---
 
 # 5. Exploration with Flink SQL
-
