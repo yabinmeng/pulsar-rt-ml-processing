@@ -24,13 +24,16 @@
 //import org.apache.flink.connector.pulsar.source.PulsarSourceBuilder;
 //import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 //import org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema;
+//import org.apache.flink.connector.pulsar.table.catalog.PulsarCatalog;
 //import org.apache.flink.core.execution.JobClient;
 //import org.apache.flink.streaming.api.datastream.DataStream;
 //import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 //import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 //import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 //import org.apache.flink.streaming.api.windowing.time.Time;
+//import org.apache.flink.table.api.Table;
 //import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+//import org.apache.flink.table.catalog.Catalog;
 //import org.apache.pulsar.client.api.Schema;
 //import org.apache.pulsar.client.api.SubscriptionType;
 //import org.slf4j.Logger;
@@ -48,9 +51,6 @@
 //    static { System.setProperty("log_file_base_name", getLogFileName(API_TYPE, APP_NAME)); }
 //
 //    private final static Logger logger = LoggerFactory.getLogger(EShopFlinkProcessorTbl.class);
-//
-//    private final static String FLINK_API_TYPE_DS ="ds";
-//    private final static String FLINK_API_TYPE_SQL ="sql";
 //
 //    private final static String WINDOW_TYPE_EVENT_TIME ="etime";
 //    private final static String WINDOW_TYPE_COUNT ="count";
@@ -90,9 +90,10 @@
 //
 //    private int lastNCnt;
 //
-//    private StreamExecutionEnvironment dsEnv;
 //    private PulsarSource<EShopInputData> eShopPulsarDsInputSource;
 //    private PulsarSink<String> eshopPulsarDsOutputSink;
+//
+//    private StreamExecutionEnvironment dsEnv;
 //
 //    private StreamTableEnvironment tblEnv;
 //
@@ -100,11 +101,9 @@
 //        super(appName, inputParams);
 //
 //        addOptionalCommandLineOption("fsrv","flinkServer", true,
-//                "The flink server address. Must in format of [embed|local|remote::<host>:<port>] (default: embed).");
+//                "The flink server address. Must be in format of [embed|local|remote::<host>:<port>] (default: embed).");
 //        addOptionalCommandLineOption("snktp","sinkTopic", true,
 //                "The sink Pulsar topic where the processed output data is sent to.");
-//        addOptionalCommandLineOption("api","apiType", true,
-//                "Flink processing API type [ds(DataStream API) - default, or tbl(Table API)].");
 //        addOptionalCommandLineOption("wndt","windowType", true,
 //                "Window type [etime(event_time) - default, count, or ptime(processing_time)].");
 //        addOptionalCommandLineOption("wnds","windowSize", true,
@@ -203,15 +202,6 @@
 //            throw new InvalidParamException("Invalid sink Pulsar topic parameter (\"-st\")!");
 //        }
 //
-//        // Optional - flink API type (default to the DataStream API)
-//        apiType = processStringInputParam("api", FLINK_API_TYPE_DS);
-//        if (!StringUtils.equalsAnyIgnoreCase(apiType, FLINK_API_TYPE_DS, FLINK_API_TYPE_SQL)) {
-//            throw new InvalidParamException(
-//                    "The flink api type (\"api\") must be one of the following values: " +
-//                            "\"" + FLINK_API_TYPE_DS + "\" (default), " +
-//                            "\"" + FLINK_API_TYPE_SQL + "\"!");
-//        }
-//
 //        // Optional - Window type (default to \"etime\" (event_time))
 //        windowType = processStringInputParam("wndt", WINDOW_TYPE_EVENT_TIME);
 //        if (!StringUtils.equalsAnyIgnoreCase(windowType, WINDOW_TYPE_EVENT_TIME, WINDOW_TYPE_COUNT, WINDOW_TYPE_PROCESS_TIME)) {
@@ -267,14 +257,9 @@
 //            eshopPulsarDsOutputSink = createFlinkPulsarDsSink();
 //        }
 //
-//        // Flink DataStream API
-//        if (StringUtils.equalsAnyIgnoreCase(apiType, FLINK_API_TYPE_DS)) {
-//            processWithDataStreamAPI();
-//        }
-////        // Flink Table API (and Flink SQL)
-////        else {
-////            processWithTableAPI();
-////        }
+//
+//        ////////////////
+//        processWithTableAPI();
 //    }
 //
 //    @Override
@@ -602,159 +587,144 @@
 //        }
 //    }
 //
-//    /*
-//    private static class EShopDataWatermarkStrategy implements WatermarkStrategy<EShopInputData> {
 //
-//        @Override
-//        public TimestampAssigner<EShopInputData> createTimestampAssigner(TimestampAssignerSupplier.Context context) {
-//            return WatermarkStrategy.super.createTimestampAssigner(context);
-//        }
+//    /**
+//     * Table API related code blocks
+//     */
+//    private void createAndRegisterPulsarCatalog(String catalogName, String dftDataBase) {
+//        assert (StringUtils.isNotBlank(dftDataBase));
 //
-//        @Override
-//        public WatermarkGenerator<EShopInputData> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
-//            return null;
+//        Optional<Catalog> catalogOpt = tblEnv.getCatalog(catalogName);
+//        if (!catalogOpt.isPresent()) {
+//            // TBD: What if the Pulsar cluster has TLS enabled?
+//            //      It looks like SN's pulsar sql connector API doesn't have a way to pass in TLS certificates
+//            //         and corresponding TLS related settings
+//            String pulsarSvcUrl = clientConnConf.getValue("brokerServiceUrl");
+//            String pulsarWebUrl = clientConnConf.getValue("webServiceUrl");
+//            String authPlugin = clientConnConf.getValue("authPlugin");
+//            String authParams = clientConnConf.getValue("authParams");
+//
+//            Catalog catalog;
+//            if (!StringUtils.isAnyBlank(authPlugin, authParams)) {
+//                authPlugin = null;
+//                authParams = null;
+//            }
+//
+//            catalog = new PulsarCatalog(
+//                    catalogName,
+//                    pulsarWebUrl,
+//                    pulsarSvcUrl,
+//                    dftDataBase,            // default database (pulsar namespace)
+//                    "__flink_catalog",      // catalog tenant
+//                    authPlugin,
+//                    authParams);
+//
+//            tblEnv.registerCatalog(catalogName, catalog);
 //        }
 //    }
-//    */
 //
-////
-////    /**
-////     * Table API related code blocks
-////     */
-////    private void createAndRegisterPulsarCatalog(String catalogName, String dftDataBase) {
-////        assert (StringUtils.isNotBlank(dftDataBase));
-////
-////        Optional<Catalog> catalogOpt = tblEnv.getCatalog(catalogName);
-////        if (!catalogOpt.isPresent()) {
-////            // TBD: What if the Pulsar cluster has TLS enabled?
-////            //      It looks like SN's pulsar sql connector API doesn't have a way to pass in TLS certificates
-////            //         and corresponding TLS related settings
-////            String pulsarSvcUrl = clientConnConf.getValue("brokerServiceUrl");
-////            String pulsarWebUrl = clientConnConf.getValue("webServiceUrl");
-////            String authPlugin = clientConnConf.getValue("authPlugin");
-////            String authParams = clientConnConf.getValue("authParams");
-////
-////            Catalog catalog;
-////            if (!StringUtils.isAnyBlank(authPlugin, authParams)) {
-////                authPlugin = null;
-////                authParams = null;
-////            }
-////
-////            catalog = new PulsarCatalog(
-////                    catalogName,
-////                    pulsarWebUrl,
-////                    pulsarSvcUrl,
-////                    dftDataBase,            // default database (pulsar namespace)
-////                    "__flink_catalog",      // catalog tenant
-////                    authPlugin,
-////                    authParams);
-////
-////            tblEnv.registerCatalog(catalogName, catalog);
-////        }
-////    }
-////
-////    private String getFlinkPulsarCrtTblSqlStr(String tableName) {
-////
-////        String sqlCrtTblBaseStr = "CREATE TABLE " + tableName + "\n" +
-////                "(\n" +
-////                "  `year`       INTEGER,\n" +
-////                "  `month`      INTEGER,\n" +
-////                "  `day`        INTEGER,\n" +
-////                "  `order`      INTEGER,\n" +
-////                "  `country`    INTEGER,\n" +
-////                "  `session`    INTEGER,\n" +
-////                "  `category`   INTEGER,\n" +
-////                "  `model`      VARCHAR,\n" +
-////                "  `color`      INTEGER,\n" +
-////                "  `location`   INTEGER,\n" +
-////                "  `modelPhoto` INTEGER,\n" +
-////                "  `price`      INTEGER,\n" +
-////                "  `priceInd`   INTEGER,\n" +
-////                "  `page`       INTEGER,\n" +
-////                "  `eventTime`  BIGINT\n" +
-////                ")";
-////
-////        String pulsarSvcUrl = clientConnConf.getValue("brokerServiceUrl");
-////        String pulsarWebUrl = clientConnConf.getValue("webServiceUrl");
-////        String authPlugin = clientConnConf.getValue("authPlugin");
-////        String authParams = clientConnConf.getValue("authParams");
-////
-////        String fullFlinkPulsarTblStr = sqlCrtTblBaseStr +
-////                " WITH (\n" +
-////                "    'connector' = 'pulsar',\n" +
-////                "    'topics' = '" + tableName + "',\n" +
-////                "    'service-url' = '" + pulsarSvcUrl + "',\n" +
-////                "    'admin-url' = '" + pulsarWebUrl + "',\n";
-////
-////        if (!StringUtils.isAnyBlank(authPlugin, authParams)) {
-////            fullFlinkPulsarTblStr = fullFlinkPulsarTblStr +
-////                    "    'auth-plugin' = '" + authPlugin + "',\n" +
-////                    "    'authParams' = '" + authParams + "',\n";
-////        }
-////
-////        fullFlinkPulsarTblStr = fullFlinkPulsarTblStr +
-////                "    'value.format' = 'json',\n" +
-////                "    'value.json.fail-on-missing-field' = 'false'\n" +
-////                ");";
-////
-////        return fullFlinkPulsarTblStr;
-////    }
-////
-////    private void processWithTableAPI() throws UnexpectedRuntimException {
-////
-////        String catalogNameSrc = "pulsar";
-////        String sourceName = topicName;
-////        if (StringUtils.contains(topicName, "://")) {
-////            sourceName = StringUtils.substringAfter(topicName, "://");
-////        }
-////
-////        ///////////////////////////////////////////
-////        // NOTE: Can't really make it work with Flink Pulsar SQL Connector
-////        //
-////        //       Can't create an explicit table. Run into the following error consistently.
-////        //       Also, the corresponding Pulsar metadata topic is not created.
-////        //
-////        //       Flink SQL> CREATE TABLE eshopInputData
-////        //       (
-////        //          `year`   	INTEGER,
-////        //          `month`  	INTEGER,
-////        //          … …
-////        //          … …
-////        //          `eventTime`  BIGINT
-////        //       ) WITH (
-////        //	        'connector' = 'pulsar',
-////        //	        'topics' = 'persistent://public/default/eshop_input',
-////        //	        'format' = 'avro'
-////        //       );
-////        //       [ERROR] Could not execute SQL statement. Reason:
-////        //       java.lang.ClassNotFoundException: org.apache.flink.table.runtime.util.JsonUtils
-////        //	            ... 20 more
-////        //
-////        //       End of exception on server side>]
-////        ///////////////////////////////////////////
-////
-////        String defaultDatabase =
-////                StringUtils.substringBeforeLast(topicName, "/");
-////        createAndRegisterPulsarCatalog(catalogNameSrc, defaultDatabase);
-////
-////        tblEnv.useCatalog(catalogNameSrc);
-////        String[] databases = tblEnv.listDatabases();
-////        String[] tables = tblEnv.listTables();
-////
-////        String eShopInputTblName = "eShopInputData";
-////        String sqlStr = getFlinkPulsarCrtTblSqlStr(eShopInputTblName);
-////        tblEnv.executeSql(sqlStr);
-////
-////        Table eShopInputTbl = tblEnv.sqlQuery("SELECT * FROM `eshop_input`");// + eShopInputTblName);
-////        eShopInputTbl.fetch(5).execute();
-////
-////        eShopInputTbl.printSchema();
-////
-////
-////        String sinkName = sinkPulsarTopic;
-////        if (StringUtils.contains(sinkPulsarTopic, "://")) {
-////            sinkName = StringUtils.substringAfter(sinkPulsarTopic, "://");
-////        }
-////        Catalog eShopPulsarTblCatalogSink = createAndRegisterPulsarCatalog(catalogNameSrc, sinkName);
-////    }
+//    private String getFlinkPulsarCrtTblSqlStr(String tableName) {
+//
+//        String sqlCrtTblBaseStr = "CREATE TABLE " + tableName + "\n" +
+//                "(\n" +
+//                "  `year`       INTEGER,\n" +
+//                "  `month`      INTEGER,\n" +
+//                "  `day`        INTEGER,\n" +
+//                "  `order`      INTEGER,\n" +
+//                "  `country`    INTEGER,\n" +
+//                "  `session`    INTEGER,\n" +
+//                "  `category`   INTEGER,\n" +
+//                "  `model`      VARCHAR,\n" +
+//                "  `color`      INTEGER,\n" +
+//                "  `location`   INTEGER,\n" +
+//                "  `modelPhoto` INTEGER,\n" +
+//                "  `price`      INTEGER,\n" +
+//                "  `priceInd`   INTEGER,\n" +
+//                "  `page`       INTEGER,\n" +
+//                "  `eventTime`  BIGINT\n" +
+//                ")";
+//
+//        String pulsarSvcUrl = clientConnConf.getValue("brokerServiceUrl");
+//        String pulsarWebUrl = clientConnConf.getValue("webServiceUrl");
+//        String authPlugin = clientConnConf.getValue("authPlugin");
+//        String authParams = clientConnConf.getValue("authParams");
+//
+//        String fullFlinkPulsarTblStr = sqlCrtTblBaseStr +
+//                " WITH (\n" +
+//                "    'connector' = 'pulsar',\n" +
+//                "    'topics' = '" + tableName + "',\n" +
+//                "    'service-url' = '" + pulsarSvcUrl + "',\n" +
+//                "    'admin-url' = '" + pulsarWebUrl + "',\n";
+//
+//        if (!StringUtils.isAnyBlank(authPlugin, authParams)) {
+//            fullFlinkPulsarTblStr = fullFlinkPulsarTblStr +
+//                    "    'auth-plugin' = '" + authPlugin + "',\n" +
+//                    "    'authParams' = '" + authParams + "',\n";
+//        }
+//
+//        fullFlinkPulsarTblStr = fullFlinkPulsarTblStr +
+//                "    'value.format' = 'json',\n" +
+//                "    'value.json.fail-on-missing-field' = 'false'\n" +
+//                ");";
+//
+//        return fullFlinkPulsarTblStr;
+//    }
+//
+//    private void processWithTableAPI() throws UnexpectedRuntimException {
+//
+//        String catalogNameSrc = "pulsar";
+//        String sourceName = topicName;
+//        if (StringUtils.contains(topicName, "://")) {
+//            sourceName = StringUtils.substringAfter(topicName, "://");
+//        }
+//
+//        ///////////////////////////////////////////
+//        // NOTE: Can't really make it work with Flink Pulsar SQL Connector
+//        //
+//        //       Can't create an explicit table. Run into the following error consistently.
+//        //       Also, the corresponding Pulsar metadata topic is not created.
+//        //
+//        //       Flink SQL> CREATE TABLE eshopInputData
+//        //       (
+//        //          `year`   	INTEGER,
+//        //          `month`  	INTEGER,
+//        //          … …
+//        //          … …
+//        //          `eventTime`  BIGINT
+//        //       ) WITH (
+//        //	        'connector' = 'pulsar',
+//        //	        'topics' = 'persistent://public/default/eshop_input',
+//        //	        'format' = 'avro'
+//        //       );
+//        //       [ERROR] Could not execute SQL statement. Reason:
+//        //       java.lang.ClassNotFoundException: org.apache.flink.table.runtime.util.JsonUtils
+//        //	            ... 20 more
+//        //
+//        //       End of exception on server side>]
+//        ///////////////////////////////////////////
+//
+//        String defaultDatabase =
+//                StringUtils.substringBeforeLast(topicName, "/");
+//        createAndRegisterPulsarCatalog(catalogNameSrc, defaultDatabase);
+//
+//        tblEnv.useCatalog(catalogNameSrc);
+//        String[] databases = tblEnv.listDatabases();
+//        String[] tables = tblEnv.listTables();
+//
+//        String eShopInputTblName = "eShopInputData";
+//        String sqlStr = getFlinkPulsarCrtTblSqlStr(eShopInputTblName);
+//        tblEnv.executeSql(sqlStr);
+//
+//        Table eShopInputTbl = tblEnv.sqlQuery("SELECT * FROM `eshop_input`");// + eShopInputTblName);
+//        eShopInputTbl.fetch(5).execute();
+//
+//        eShopInputTbl.printSchema();
+//
+//
+//        String sinkName = sinkPulsarTopic;
+//        if (StringUtils.contains(sinkPulsarTopic, "://")) {
+//            sinkName = StringUtils.substringAfter(sinkPulsarTopic, "://");
+//        }
+//        Catalog eShopPulsarTblCatalogSink = createAndRegisterPulsarCatalog(catalogNameSrc, sinkName);
+//    }
 //}
