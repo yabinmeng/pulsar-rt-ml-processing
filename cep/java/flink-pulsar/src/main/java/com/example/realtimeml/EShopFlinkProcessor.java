@@ -90,7 +90,7 @@ public class EShopFlinkProcessor extends EShopCmdApp {
         super(appName, inputParams);
 
         addOptionalCommandLineOption("fsrv","flinkServer", true,
-                "The flink server address. Must in format of [embed|local|remote::<host>:<port>] (default: embed).");
+                "The flink server address. Must be in format of [embed|local|remote::<host>:<port>] (default: embed).");
         addOptionalCommandLineOption("snktp","sinkTopic", true,
                 "The sink Pulsar topic where the processed output data is sent to.");
         addOptionalCommandLineOption("wndt","windowType", true,

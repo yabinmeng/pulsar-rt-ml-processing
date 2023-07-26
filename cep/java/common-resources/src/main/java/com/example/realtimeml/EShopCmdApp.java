@@ -241,14 +241,12 @@ abstract public class EShopCmdApp {
 
         File file = null;
 
-        if (option.isRequired()) {
-            String path = commandLine.getOptionValue(option.getOpt());
-            try {
-                file = new File(path);
-                file.getCanonicalPath();
-            } catch (IOException ex) {
-                throw new InvalidParamException("Invalid file path for param '" + optionName + "': " + path);
-            }
+        String path = commandLine.getOptionValue(option.getOpt());
+        try {
+            file = new File(path);
+            file.getCanonicalPath();
+        } catch (IOException ex) {
+            throw new InvalidParamException("Invalid file path for param '" + optionName + "': " + path);
         }
 
         return file;
