@@ -545,7 +545,7 @@ org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException: 
  at [Source: UNKNOWN; line: 1, column: 2]
 ```
 
-**TBD**, at the moment, when running the `SELECT` statement against the above table `eshopInputFlink`, it keeps showing Avro deserialization problem like below. This is a blockign issue and need to be further investigated.
+**TBD**, at the moment, when running the `SELECT` statement against the above table `eshopInputFlink`, it keeps showing Avro deserialization problem like below. This is a blockign issue and need to be further investigated (see [StackOverflow question](https://stackoverflow.com/questions/76772974/flink-sql-connector-for-pulsar-deserialization-issue-with-avro-schema))
 ```
 [ERROR] Could not execute SQL statement. Reason:
 java.lang.ArrayIndexOutOfBoundsException: Index xxx out of bounds for length 2
